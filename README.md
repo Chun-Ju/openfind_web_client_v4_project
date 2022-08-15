@@ -1,0 +1,2 @@
+# openfind_web_client_v4_project
+請撰寫一個程式來複製指定網站內所有的網頁資料

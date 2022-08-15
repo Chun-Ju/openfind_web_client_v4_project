@@ -1,5 +1,12 @@
 #include "main.h"
 
+#ifndef _URLPROCESSED_H_
+#define _URLPROCESSED_H_
+#include "urlProcessed.h"
+#endif
+
+#include "socket.h"
+
 int processCount = 5;
 char *outputDir;
 char *urlBuf;
@@ -49,13 +56,22 @@ int main(int argc, char *argv[]){
    char webUrlFile[3 * MAX_URL_SIZE];
    webUrlProcessed(argv[1], webUrl, webUrlFile);
 
-   char tmpPathname[3 * MAX_URL_SIZE + PATH_MAX];
-   sprintf(tmpPathname, "%s%s\0", outputDir, webUrlFile);
-   FILE *fd = fopen(tmpPathname, "w+");
+   char tmpPathName[3 * MAX_URL_SIZE + PATH_MAX];
+   sprintf(tmpPathName, "%s%s\0", outputDir, webUrlFile);
+   FILE *fd = fopen(tmpPathName, "w+");
    if(!fd){
       free(outputDir);
       return ERR_FOPEN;
    }
+   fclose(fd);
+
+   char *result = requestWeb(webUrl, outputDir);
+   fd = fopen(URL_FILE, "w+");
+   if(!fd){
+      free(outputDir);
+      return ERR_FOPEN;
+   }
+   fprintf(fd, "%s", result);
    fclose(fd);
 
    free(outputDir);

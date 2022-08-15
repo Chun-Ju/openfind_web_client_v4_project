@@ -2,6 +2,7 @@
 
 void charConvertHex(char *originalHref, char *href, int which[MAX_URL_SIZE], int count){
    int last = 0;
+   href[0] = '\0';
    for(int i = 0; i < count; i++){ // start to processing
       strncat(href, originalHref + last, which[i] - last);
       href[strlen(href)] = '\0';
@@ -12,6 +13,22 @@ void charConvertHex(char *originalHref, char *href, int which[MAX_URL_SIZE], int
       strncat(href, originalHref + last, which[count - 1] - last);
    }
 }
+
+void url2FileName(char *webUrl, char *webUrlFile) {
+   int fileNameProcessedIndex[MAX_URL_SIZE];
+   int fileNameProcessedCount = 0;
+   for(int i = 0; i < strlen(webUrl); i++){
+      if(strchr(URL_SAVED_CHARSET, webUrl[i]) && webUrl[i] != '%'){
+         fileNameProcessedIndex[fileNameProcessedCount++] = i;
+      }
+   }
+   if(fileNameProcessedCount == 0){
+      strncpy(webUrlFile, webUrl, strlen(webUrl) + 1);
+   }else{
+      charConvertHex(webUrl, webUrlFile, fileNameProcessedIndex, fileNameProcessedCount);
+   }
+}
+
 void webUrlProcessed(char *href, char *webUrl, char *webUrlFile) {
    int hrefProcessedIndex[MAX_URL_SIZE];
    int hrefProcessedCount = 0;

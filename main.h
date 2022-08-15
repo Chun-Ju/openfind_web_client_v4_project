@@ -14,8 +14,6 @@
 #include <string.h>
 #endif
 
-#include "urlProcessed.h"
-
 #define URL_FILE "url.txt"//for saving the file of url's order to dispatch
 #define urlPerProcess 5//the max amount of url expected tp dispatch to per child process
 

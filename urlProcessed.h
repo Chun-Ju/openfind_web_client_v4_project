@@ -11,10 +11,11 @@
 #endif
 
 #define URL_SAVED_CHARSET_COUNT 19
-#define URL_SAVED_CHARSET "!*'();:@&=+$,/?%%#[]"
+#define URL_SAVED_CHARSET "-. ~!*'();:@&=+$,/?%%#[]"
 
 #ifndef  MAX_URL_SIZE
 #define MAX_URL_SIZE 0x2000
 #endif
 
+void url2FileName(char *webUrl, char *webUrlFile);
 void webUrlProcessed(char *href, char *webUrl, char *webUrlFile);

@@ -31,6 +31,7 @@
 
 #ifndef MAX_URL_SIZE
 #define MAX_URL_SIZE 0x2000
+#define MAX_CONVERT_URL_SIZE (3*MAX_URL_SIZE)
 #endif
 
 #ifndef PATH_MAX

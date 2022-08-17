@@ -12,7 +12,7 @@ int create_socket(char[], BIO *);
 int get_host(char *url, char *host, int host_size);
 char *parsingHerf(char *, char *);
 char hostname[256] = "";
-char cur_url[3 * MAX_URL_SIZE];
+char cur_url[MAX_CONVERT_URL_SIZE];
 
 char *requestWeb(char *def_url, char *outputDir) {
    strncpy(cur_url, def_url, strlen(def_url) + 1);
@@ -202,9 +202,9 @@ char *requestWeb(char *def_url, char *outputDir) {
    /* --------------------------------------------------------  *
     * parsing the web struct and analyze the message by Felicia *
     * --------------------------------------------------------- */
-   char statusCode[4];//HTTP/1.1 STATUS_CODE ...
-   strncpy(statusCode, printBuf + 9, 3);
-   statusCode[3] = '\0';
+   char statusCode[STATUS_CODE_LEN+1];//HTTP/1.1 STATUS_CODE ...
+   strncpy(statusCode, printBuf + 9, STATUS_CODE_LEN);
+   statusCode[STATUS_CODE_LEN] = '\0';
    //char *result = SSL_FAIL;
    char nextUrl[MAX_URL_SIZE] = "https://\0";
    _Bool findNext = 0;
@@ -230,8 +230,8 @@ char *requestWeb(char *def_url, char *outputDir) {
          body[strlen(body)-4] = '\0';
       }
       //weburl file
-      char pathName[3 * MAX_URL_SIZE + PATH_MAX];
-      char webUrlFile[3 * MAX_URL_SIZE];
+      char pathName[MAX_CONVERT_URL_SIZE + PATH_MAX];
+      char webUrlFile[MAX_CONVERT_URL_SIZE];
       url2FileName(def_url, webUrlFile);
       sprintf(pathName, "%s%s\0", outputDir, webUrlFile);
       //write and wrlock
@@ -272,9 +272,9 @@ char *requestWeb(char *def_url, char *outputDir) {
       }
    }
    if(findNext){
-      char pathName[3 * MAX_URL_SIZE + PATH_MAX];
-      char webUrl[3*MAX_URL_SIZE];
-      char webUrlFile[3*MAX_URL_SIZE];
+      char pathName[MAX_CONVERT_URL_SIZE + PATH_MAX];
+      char webUrl[MAX_CONVERT_URL_SIZE];
+      char webUrlFile[MAX_CONVERT_URL_SIZE];
       webUrlProcessed(nextUrl, webUrl, webUrlFile);
       sprintf(pathName, "%s%s\0", outputDir, webUrlFile);
       int fd = open(pathName, O_RDWR|O_EXCL|O_CREAT, 0644);
@@ -326,7 +326,7 @@ char* parsingHerf(char * web, char *outputDir){
          continue;
       }
       length = (int)(ahrefStrEnd - web);
-      char *aHrefStr = (char *)malloc(3 * MAX_URL_SIZE * sizeof(char));
+      char *aHrefStr = (char *)malloc(MAX_CONVERT_URL_SIZE * sizeof(char));
       strncpy(aHrefStr, web, length);
       aHrefStr[length] = '\0';
 
@@ -380,7 +380,7 @@ prev_justify:
             printf("not searching prev layer yet");
          }
       }else{
-         char tmpStrSearch[3 * MAX_URL_SIZE];
+         char tmpStrSearch[MAX_CONVERT_URL_SIZE];
          switch(concat_direction){//case 0 has already processed completetly
             case 1:
                strncpy(tmpStrSearch, cur_url, strlen(cur_url) + 1);
@@ -400,10 +400,10 @@ prev_justify:
             break;
          }
       }
-      char tmpStr[7 + 3 * MAX_URL_SIZE];
-      char webUrl[3 * MAX_URL_SIZE];
-      char webUrlFile[3 * MAX_URL_SIZE];
-      char pathName[3 * MAX_URL_SIZE + PATH_MAX];
+      char tmpStr[7 + MAX_CONVERT_URL_SIZE];
+      char webUrl[MAX_CONVERT_URL_SIZE];
+      char webUrlFile[MAX_CONVERT_URL_SIZE];
+      char pathName[MAX_CONVERT_URL_SIZE + PATH_MAX];
       webUrlProcessed(aHrefStr, webUrl, webUrlFile);
 
       sprintf(pathName, "%s%s\0", outputDir, webUrlFile);

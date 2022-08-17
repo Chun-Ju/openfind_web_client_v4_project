@@ -23,12 +23,12 @@ int forkProcess(int time){
       return forkProcess(time);
    }else{ //all need to see once
       for(int i = 0; i < urlPerProcess; i++){ //read the whole page of web and download it
-         char *tmpUrlStr = urlBuf + ((processCount - time) * processCount + i) * MAX_URL_SIZE;
+         char *tmpUrlStr = urlBuf + ((processCount - time) * urlPerProcess + i) * MAX_CONVERT_URL_SIZE;
+            
          if(strcmp(tmpUrlStr, "") == 0){
             break;
          }
          char *result = requestWeb(tmpUrlStr, outputDir);
-         //char *result = requestWeb(urlBuf + ((processCount - time) * processCount + i) * MAX_URL_SIZE, outputDir);
          if(!result){
             continue;
          }
@@ -60,9 +60,8 @@ int forkProcess(int time){
       exit(SUCCESS);
    }
 }
-int totalCount = 0;
 int readUrlFromFile(FILE *fd){
-   char *urlBufTmp = (char *)malloc(processCount * urlPerProcess * MAX_URL_SIZE * sizeof(char));
+   char *urlBufTmp = (char *)malloc(processCount * urlPerProcess * MAX_CONVERT_URL_SIZE * sizeof(char));
    if(!urlBufTmp){
       return ERR_MALLOC;
    }
@@ -73,11 +72,10 @@ int readUrlFromFile(FILE *fd){
          break;
       }
 
-      char url[MAX_URL_SIZE];
+      char url[3 * MAX_URL_SIZE];
       fread(url, tmpCount + 1, 1, fd);
       url[tmpCount] = '\0';
-totalCount += (6 + tmpCount);
-      strncpy(urlBufTmp + count * MAX_URL_SIZE, url, tmpCount + 1);
+      strncpy(urlBufTmp + count * 3 * MAX_URL_SIZE, url, tmpCount + 1);
    }
    const int diffCount = count % processCount;
    //if == 0 , represent everyone has the same amount to count
@@ -91,16 +89,15 @@ totalCount += (6 + tmpCount);
          i_count++;
       }
       for(int j = 0; j < i_count; j++){
-         char *urlBufPointer = urlBuf + (i * processCount + j) * MAX_URL_SIZE;
-         char *urlBufTmpPointer = urlBufTmp + which * MAX_URL_SIZE;
+         char *urlBufPointer = urlBuf + (i * urlPerProcess + j) * MAX_CONVERT_URL_SIZE;
+         char *urlBufTmpPointer = urlBufTmp + which * MAX_CONVERT_URL_SIZE;
          int urlBufTmpPointer_len = strlen(urlBufTmpPointer);
-         strncpy(urlBufPointer, urlBufTmp + which * MAX_URL_SIZE, urlBufTmpPointer_len);
+         strncpy(urlBufPointer, urlBufTmp + which * MAX_CONVERT_URL_SIZE, urlBufTmpPointer_len+1);
          if(++which >= count){
             break;
          }
       }
    }
-
    free(urlBufTmp);
    return SUCCESS;
 }
@@ -146,11 +143,11 @@ int main(int argc, char *argv[]){
       return ERR_MALLOC;
    }
    strncpy(outputDir, argv[2], strlen(argv[2]) + 1);
-   char webUrl[3 * MAX_URL_SIZE];
-   char webUrlFile[3 * MAX_URL_SIZE];
+   char webUrl[MAX_CONVERT_URL_SIZE];
+   char webUrlFile[MAX_CONVERT_URL_SIZE];
    webUrlProcessed(argv[1], webUrl, webUrlFile);
 
-   char tmpPathName[3 * MAX_URL_SIZE + PATH_MAX];
+   char tmpPathName[MAX_CONVERT_URL_SIZE + PATH_MAX];
    sprintf(tmpPathName, "%s%s\0", outputDir, webUrlFile);
    FILE *fd = fopen(tmpPathName, "w+");
    if(!fd){
@@ -179,14 +176,14 @@ connectMain:
    fprintf(fd, "%s", result);
    fclose(fd);
    //read and dispatch
-   urlBuf = (char *)malloc(processCount * urlPerProcess * MAX_URL_SIZE * sizeof(char));
+   urlBuf = (char *)malloc(processCount * urlPerProcess * MAX_CONVERT_URL_SIZE * sizeof(char));
    if(!urlBuf){
       free(outputDir);
       return ERR_MALLOC;
    }
    int lastPos = 0;
    while(1){
-      memset(urlBuf, '\0', processCount * urlPerProcess * MAX_URL_SIZE * sizeof(char));
+      memset(urlBuf, '\0', processCount * urlPerProcess * MAX_CONVERT_URL_SIZE * sizeof(char));
       fd = fopen(URL_FILE, "r");
       if(!fd){
          free(urlBuf);
@@ -238,7 +235,7 @@ connectMain:
 void dumpUrlNum(){
    for(int i = 0; i < processCount; i++){
       for(int j = 0; j < urlPerProcess; j++){
-         printf("%d %d %s\n", i, j,urlBuf + (i * processCount + j)* MAX_URL_SIZE);
+         printf("%d %d %s\n", i, j,urlBuf + (i * urlPerProcess + j) * MAX_CONVERT_URL_SIZE);
       }
    }
 }

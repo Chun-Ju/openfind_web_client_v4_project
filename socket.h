@@ -1,6 +1,8 @@
 #ifndef MAX_URL_SIZE
 #define MAX_URL_SIZE (0x2000)
+#define MAX_CONVERT_URL_SIZE (3*MAX_URL_SIZE)
 #endif
+
 #define MAX_WEB_SIZE (0xfffff)
 #define MAX_PER_SIZE (0xffff)
 
@@ -35,5 +37,6 @@
 #define SOCKET_FAIL 0
 #define SSL_FAIL NULL
 
-//#include "urlProcessed.h"
+#define STATUS_CODE_LEN 3
+
 char *requestWeb(char *def_url, char *outputDir);

@@ -10,9 +10,103 @@
 int processCount = 5;
 char *outputDir;
 char *urlBuf;
+void dumpUrlNum();
+
+//error code of child process cannot exceed -256
+//url amount of a process need to read need to be less than 256
+int forkProcess(int time){
+   if(time == 0){
+      return SUCCESS;
+   }
+   if(fork() != 0){//parent 負責生產 並決定讀那一行數
+      time--;
+      return forkProcess(time);
+   }else{ //all need to see once
+      for(int i = 0; i < urlPerProcess; i++){ //read the whole page of web and download it
+         char *tmpUrlStr = urlBuf + ((processCount - time) * processCount + i) * MAX_URL_SIZE;
+         if(strcmp(tmpUrlStr, "") == 0){
+            break;
+         }
+         char *result = requestWeb(tmpUrlStr, outputDir);
+         //char *result = requestWeb(urlBuf + ((processCount - time) * processCount + i) * MAX_URL_SIZE, outputDir);
+         if(!result){
+            continue;
+         }
+
+         int fd = open(URL_FILE, O_WRONLY|O_APPEND);
+         if(fd == -1){
+#ifdef _TEST_
+            printf("\nreason: err_open\n\n");
+#endif
+            exit(ERR_FOPEN);
+         }
+         struct flock lock;
+         char buffer[1024];
+         lock.l_len = 0;
+         lock.l_pid = getpid();
+         lock.l_start = 0;
+         lock.l_type = F_WRLCK;
+         lock.l_whence = SEEK_SET;
+         //NEED TO BLOCKING UNTIL CAN WRITE
+         fcntl(fd, F_SETLKW, &lock);
+         write(fd, result, strlen(result));
+
+         lock.l_type = F_UNLCK;
+         fcntl(fd, F_SETLK, &lock);
+
+         close(fd);
+
+      }
+      exit(SUCCESS);
+   }
+}
+int totalCount = 0;
+int readUrlFromFile(FILE *fd){
+   char *urlBufTmp = (char *)malloc(processCount * urlPerProcess * MAX_URL_SIZE * sizeof(char));
+   if(!urlBufTmp){
+      return ERR_MALLOC;
+   }
+   int count = 0;
+   for(count = 0; count < processCount * urlPerProcess; count++){
+      int tmpCount;
+      if(fscanf(fd, "%x\t", &tmpCount) == EOF){//end of file
+         break;
+      }
+
+      char url[MAX_URL_SIZE];
+      fread(url, tmpCount + 1, 1, fd);
+      url[tmpCount] = '\0';
+totalCount += (6 + tmpCount);
+      strncpy(urlBufTmp + count * MAX_URL_SIZE, url, tmpCount + 1);
+   }
+   const int diffCount = count % processCount;
+   //if == 0 , represent everyone has the same amount to count
+   //else means the first [diffcount] will more one than others
+   int which = 0;
+   //notice: the first [diffcount] will be [urlPerProcessCount] + 1
+   const int urlPerProcessCount_tmp = count / processCount;
+   for(int i = 0; i < processCount && which < count; i++){
+      int i_count = urlPerProcessCount_tmp;
+      if(diffCount != 0 && (i < diffCount)){
+         i_count++;
+      }
+      for(int j = 0; j < i_count; j++){
+         char *urlBufPointer = urlBuf + (i * processCount + j) * MAX_URL_SIZE;
+         char *urlBufTmpPointer = urlBufTmp + which * MAX_URL_SIZE;
+         int urlBufTmpPointer_len = strlen(urlBufTmpPointer);
+         strncpy(urlBufPointer, urlBufTmp + which * MAX_URL_SIZE, urlBufTmpPointer_len);
+         if(++which >= count){
+            break;
+         }
+      }
+   }
+
+   free(urlBufTmp);
+   return SUCCESS;
+}
 
 int main(int argc, char *argv[]){
-   //pid_t parentPid = getpid();
+   pid_t parentPid = getpid();
 
    if(argc == 4){
       processCount = atoi(argv[3]);
@@ -65,15 +159,86 @@ int main(int argc, char *argv[]){
    }
    fclose(fd);
 
-   char *result = requestWeb(webUrl, outputDir);
+   int tryMain = 0;
+   char *result;
+connectMain:
+   //char *result = requestWeb(webUrl, outputDir);
+   result = requestWeb(webUrl, outputDir);
    fd = fopen(URL_FILE, "w+");
    if(!fd){
       free(outputDir);
       return ERR_FOPEN;
    }
+   if(!result){
+      if(tryMain++ < 3){
+         goto connectMain;
+      }else{
+         return ERR_SOCKET;
+      }
+   }
    fprintf(fd, "%s", result);
    fclose(fd);
-
+   //read and dispatch
+   urlBuf = (char *)malloc(processCount * urlPerProcess * MAX_URL_SIZE * sizeof(char));
+   if(!urlBuf){
+      free(outputDir);
+      return ERR_MALLOC;
+   }
+   int lastPos = 0;
+   while(1){
+      memset(urlBuf, '\0', processCount * urlPerProcess * MAX_URL_SIZE * sizeof(char));
+      fd = fopen(URL_FILE, "r");
+      if(!fd){
+         free(urlBuf);
+         free(outputDir);
+         return ERR_FOPEN;
+      }
+      fseek(fd, lastPos, SEEK_SET);
+      int readResult;
+      readResult = readUrlFromFile(fd);
+      if(readResult != SUCCESS){
+         free(urlBuf);
+         fclose(fd);
+         free(outputDir);
+         return readResult;
+      }
+      lastPos = ftell(fd);
+      fclose(fd);
+      //call the child process to work
+      forkProcess(processCount);
+      int status;
+      while(wait(&status) > 0){  
+         if(status < 0){ //child process過程中有error發生
+            free(urlBuf);
+            free(outputDir);
+            return status/256;//error code的設定絕對不可小於-256
+         }
+      }
+      //check
+      fd = fopen(URL_FILE, "r");
+      if(!fd){
+         free(urlBuf);
+         free(outputDir);
+         return ERR_FOPEN;
+      }
+      fseek(fd, 0, SEEK_END);
+      if(lastPos == ftell(fd)){//already read to the end
+#ifdef _TEST_
+         printf("it's the end, position is: %d\n", lastPos);
+#endif
+         break;
+      }
+      fclose(fd);
+   }
+   free(urlBuf);
    free(outputDir);
    return SUCCESS;
+}
+
+void dumpUrlNum(){
+   for(int i = 0; i < processCount; i++){
+      for(int j = 0; j < urlPerProcess; j++){
+         printf("%d %d %s\n", i, j,urlBuf + (i * processCount + j)* MAX_URL_SIZE);
+      }
+   }
 }

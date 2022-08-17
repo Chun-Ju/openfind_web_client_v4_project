@@ -1,5 +1,7 @@
 main:
+	rm -rf web_client
 	rm -rf webpage
+	rm -rf url.txt
 	gcc main.c urlProcessed.c socket.c -o web_client -D_TEST_ -lssl -lcrypto
 
 exec:

@@ -12,8 +12,11 @@ int create_socket(char[], BIO *);
 int get_host(char *url, char *host, int host_size);
 char *parsingHerf(char *, char *);
 char hostname[256] = "";
+char cur_url[3 * MAX_URL_SIZE];
 
 char *requestWeb(char *def_url, char *outputDir) {
+   strncpy(cur_url, def_url, strlen(def_url) + 1);
+
    char dest_url[MAX_URL_SIZE];
    char host[MAX_URL_SIZE];
    BIO  *certbio = NULL;
@@ -25,9 +28,11 @@ char *requestWeb(char *def_url, char *outputDir) {
    SSL *ssl;
    int server = 0;
    int ret, i;
-
-   strncpy(dest_url, def_url, MAX_URL_SIZE - 1);
-   dest_url[MAX_URL_SIZE - 1] = '\0';
+   
+   char *result = SSL_FAIL;
+   /*strncpy(dest_url, def_url, MAX_URL_SIZE - 1);
+   dest_url[MAX_URL_SIZE - 1] = '\0';*/
+   strncpy(dest_url, def_url, strlen(def_url) + 1);
    get_host(dest_url, host, MAX_URL_SIZE);
    /* ---------------------------------------------------------- *
     * Add to solve the sub directory of the website. by Felicia  *
@@ -58,7 +63,10 @@ char *requestWeb(char *def_url, char *outputDir) {
     * initialize SSL library and register algorithms             *
     * ---------------------------------------------------------- */
    if(SSL_library_init() < 0){
+#ifdef _BIO_PRINTF_
       BIO_printf(outbio, "Could not initialize the OpenSSL library !\n");
+#endif
+      goto ssl_fail_error_handle;
       return SSL_FAIL;
    }
    /* ---------------------------------------------------------- *
@@ -71,7 +79,10 @@ char *requestWeb(char *def_url, char *outputDir) {
     * Try to create a new SSL context                            *
     * ---------------------------------------------------------- */
    if ( (ctx = SSL_CTX_new(method)) == NULL){
+#ifdef _BIO_PRINTF_
       BIO_printf(outbio, "Unable to create a new SSL context structure.\n");
+#endif
+      goto ssl_fail_error_handle;
       return SSL_FAIL;
    }
    /* ---------------------------------------------------------- *
@@ -89,8 +100,11 @@ char *requestWeb(char *def_url, char *outputDir) {
     * ---------------------------------------------------------- */
    server = create_socket(dest_url, outbio);
    if(server != 0){
+#ifdef _BIO_PRINTF_
       BIO_printf(outbio, "Successfully made the TCP connection to: %s.\n", dest_url);
+#endif
    }else {
+      goto ssl_fail_error_handle;
       return SSL_FAIL;
    }
    /* ---------------------------------------------------------- *
@@ -108,7 +122,9 @@ char *requestWeb(char *def_url, char *outputDir) {
     * ---------------------------------------------------------- */
    if ((ret = SSL_connect(ssl)) != 1 ) {
       int err;
+#ifdef _BIO_PRINTF_
       BIO_printf(outbio, "Error: Could not build a SSL session to: %s.\n", dest_url);
+#endif
       /* ---------------------------------------------------------- *
        * Print SSL-connect error message by andric                  *
        * ---------------------------------------------------------- */
@@ -120,9 +136,12 @@ char *requestWeb(char *def_url, char *outputDir) {
          ERR_error_string_n(ERR_get_error(), msg, sizeof(msg));
          printf("%s %s %s %s\n", msg, ERR_lib_error_string(0), ERR_func_error_string(0), ERR_reason_error_string(0));
       }
+      goto ssl_fail_error_handle;
       return SSL_FAIL;
    }else {
+#ifdef _BIO_PRINTF_
       BIO_printf(outbio, "Successfully enabled SSL/TLS session to: %s.\n", dest_url);
+#endif
    }
 
    /* ---------------------------------------------------------- *
@@ -130,11 +149,16 @@ char *requestWeb(char *def_url, char *outputDir) {
     * ---------------------------------------------------------- */
    cert = SSL_get_peer_certificate(ssl);
    if (cert == NULL){
+#ifdef _BIO_PRINTF_
       BIO_printf(outbio, "Error: Could not get a certificate from: %s.\n", dest_url);
-      return NULL;
+#endif
+      goto ssl_fail_error_handle;
+      return SSL_FAIL;
    }
+#ifdef _BIO_PRINTF_
    else
       BIO_printf(outbio, "Retrieved the server's certificate from: %s.\n", dest_url);
+#endif
    /* ---------------------------------------------------------- *
     * extract various certificate information                    *
     * -----------------------------------------------------------*/
@@ -144,9 +168,11 @@ char *requestWeb(char *def_url, char *outputDir) {
    /* ---------------------------------------------------------- *
     * display the cert subject here                              *
     * -----------------------------------------------------------*/
+#ifdef _BIO_PRINTF_
    BIO_printf(outbio, "Displaying the certificate subject data:\n");
    X509_NAME_print_ex(outbio, certname, 0, 0);
    BIO_printf(outbio, "\n");
+#endif
    /* ---------------------------------------------------------- *
     * recv the message or the webpage structure by Felicia       *
     * -----------------------------------------------------------*/
@@ -179,7 +205,7 @@ char *requestWeb(char *def_url, char *outputDir) {
    char statusCode[4];//HTTP/1.1 STATUS_CODE ...
    strncpy(statusCode, printBuf + 9, 3);
    statusCode[3] = '\0';
-   char *result = SSL_FAIL;
+   //char *result = SSL_FAIL;
    char nextUrl[MAX_URL_SIZE] = "https://\0";
    _Bool findNext = 0;
    if(strcmp(statusCode, "200") == 0){
@@ -187,6 +213,7 @@ char *requestWeb(char *def_url, char *outputDir) {
       char *body = strstr(printBuf, CRLF);
       if(!body){
          printf("no web struct found\n");
+         goto ssl_fail_error_handle;
          return SSL_FAIL;
       }
       body += strlen(CRLF);
@@ -212,11 +239,13 @@ char *requestWeb(char *def_url, char *outputDir) {
       char buffer[1024];
       int fd = open(pathName, O_RDWR);
       if(fd == -1){
+         goto ssl_fail_error_handle;
          return SSL_FAIL;
       }
       int res = fcntl(fd, F_SETLKW, &lock);
       int n = read(fd, buffer, sizeof(buffer));
       if(n != 0){
+         goto ssl_fail_error_handle;
          return SSL_FAIL;
       }
       write(fd, body, strlen(body) + 1);
@@ -260,11 +289,14 @@ char *requestWeb(char *def_url, char *outputDir) {
    /* ---------------------------------------------------------- *
     * Free the structures we don't need anymore                  *
     * -----------------------------------------------------------*/
+ssl_fail_error_handle:
    SSL_free(ssl);
    close(server);
    X509_free(cert);
    SSL_CTX_free(ctx);
+#ifdef _BIO_PRINTF_
    BIO_printf(outbio, "Finished SSL/TLS connection with server: %s.\n", dest_url);
+#endif
    if(!findNext){
       return result;
    }else{
@@ -288,26 +320,114 @@ char* parsingHerf(char * web, char *outputDir){
       int length = strlen(web) - (int)(ahrefStr-web);
       strncpy(web, ahrefStr + strlen(ahref), length - strlen(ahref));
       web[length-strlen(ahref)] = '\0';
-      // web = ahrefStr;
-      char * ahrefStrEnd = strstr(web, ahrefEnd);
+
+      char *ahrefStrEnd = strstr(web, ahrefEnd);
       if(!ahrefStrEnd){
          continue;
       }
       length = (int)(ahrefStrEnd - web);
-      char *aHrefStr = (char *)malloc((length + 1)*sizeof(char));
+      char *aHrefStr = (char *)malloc(3 * MAX_URL_SIZE * sizeof(char));
       strncpy(aHrefStr, web, length);
       aHrefStr[length] = '\0';
-
+/*
       char tmpStr[7 + 3 * MAX_URL_SIZE];
       char webUrl[3 * MAX_URL_SIZE];
       char webUrlFile[3 * MAX_URL_SIZE];
       char pathName[3 * MAX_URL_SIZE + PATH_MAX];
       webUrlProcessed(aHrefStr, webUrl, webUrlFile);
+*/
+      _Bool complete = 0;//complete:0 need to search for prev layer or can ignore, complete:1 means don't need search for prev layer
+      int concat_direction = 0;//neg:prev, 0:means the same ignore, pos:concat after current url
+      int which = 0;
+prev_justify:
+      switch(aHrefStr[which++]){
+         case '#':
+            concat_direction = 0;
+         break;
+         case '.':
+            if(which < strlen(aHrefStr)){
+               switch(aHrefStr[which++]){
+                  case '/': //after current
+                     if(which == 1){
+                        complete = 1;
+                        concat_direction = 1;
+                     }
+                     break;
+                  case '.': //while previous justify
+                     if(which < strlen(aHrefStr) && aHrefStr[which++] == '/'){
+                        concat_direction -= 1;
+                        goto prev_justify;
+                     }
+                  break;
+               }
+            }
+         break;
+         case '/': //after host name
+            complete = 1;
+            concat_direction = -200;
+         break;
+         default:
+            if(strlen(aHrefStr) >= 8){//complete and concat == 0 means don't need to search
+               complete = !strncmp(aHrefStr, "https://", 8);
+            }
+            if(!complete){
+               complete = 1;
+               concat_direction = 2;
+            }
+         break;
+      }
+
+      if(!complete){
+         if(concat_direction == 0){
+            //printf("many %s\n", aHrefStr);
+            continue;
+         }else{
+            //searching prev layer
+            printf("not searching prev layer yet");
+         }
+      }else{
+         char tmpStrSearch[3 * MAX_URL_SIZE];
+         switch(concat_direction){//case 0 has already processed completetly
+            case 1:
+               strncpy(tmpStrSearch, cur_url, strlen(cur_url) + 1);
+               strncat(tmpStrSearch, aHrefStr + 2, strlen(aHrefStr) - 1);
+               strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch) + 1);
+            break;
+            case 2:
+               strncpy(tmpStrSearch, cur_url, strlen(cur_url) + 1);
+               strncat(tmpStrSearch, aHrefStr, strlen(aHrefStr) + 1);
+               strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch) + 1);
+            break;
+            case -200:
+               strncpy(tmpStrSearch, "https://\0", 9);
+               strncat(tmpStrSearch, hostname, strlen(hostname) + 1);
+               strncat(tmpStrSearch, aHrefStr, strlen(aHrefStr) + 1);
+               strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch) + 1);
+            break;
+         }
+      }
+      char tmpStr[7 + 3 * MAX_URL_SIZE];
+      char webUrl[3 * MAX_URL_SIZE];
+      char webUrlFile[3 * MAX_URL_SIZE];
+      char pathName[3 * MAX_URL_SIZE + PATH_MAX];
+      webUrlProcessed(aHrefStr, webUrl, webUrlFile);
+
       sprintf(pathName, "%s%s\0", outputDir, webUrlFile);
       int fd = open(pathName, O_RDWR|O_EXCL|O_CREAT, 0644);
       if(fd == -1 && (errno == EEXIST)){
          continue;
+      }else{
+         fd = open(pathName, O_RDWR, 0644);
+         if(fd == -1){
+#ifdef _TEST_
+            int tmp = errno;
+            printf("%d\n", tmp);
+            printf("open file failed twice in parsingHerf of socket.c about: %s\n", cur_url);
+#endif
+            continue;
+         }
       }
+      //printf("%d %d\n%s\n\n\n", complete, concat_direction, webUrl);
       sprintf(tmpStr, "%04x\t%s\t\0", strlen(webUrl), webUrl);
       strncat(printBuf, tmpStr, strlen(tmpStr));
       free(aHrefStr);
@@ -368,7 +488,10 @@ int create_socket(char url_str[], BIO *out) {
    port = atoi(portnum);
 
    if ((host = gethostbyname(hostname)) == NULL) {
-      BIO_printf(out, "Error: Cannot resolve hostname %s.\n",  hostname);
+#ifdef _BIO_PRINTF_
+      BIO_printf(out, "Error: Cannot resolve hostname %s.\n",  cur_url, hostname);
+#endif
+      //BIO_printf(out, "Error: Cannot resolve hostname %s.\n",  cur_url, hostname);
       //abort();
       return SOCKET_FAIL;
    }
@@ -400,8 +523,10 @@ int create_socket(char url_str[], BIO *out) {
     * ---------------------------------------------------------- */
    if (connect(sockfd, (struct sockaddr *) &dest_addr,
             sizeof(struct sockaddr)) == -1 ) {
+#ifdef _BIO_PRINTF_
       BIO_printf(out, "Error: Cannot connect to host %s [%s] on port %d.\n",
             hostname, tmp_ptr, port);
+#endif
    }
    return sockfd;
 }

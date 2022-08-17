@@ -329,13 +329,7 @@ char* parsingHerf(char * web, char *outputDir){
       char *aHrefStr = (char *)malloc(3 * MAX_URL_SIZE * sizeof(char));
       strncpy(aHrefStr, web, length);
       aHrefStr[length] = '\0';
-/*
-      char tmpStr[7 + 3 * MAX_URL_SIZE];
-      char webUrl[3 * MAX_URL_SIZE];
-      char webUrlFile[3 * MAX_URL_SIZE];
-      char pathName[3 * MAX_URL_SIZE + PATH_MAX];
-      webUrlProcessed(aHrefStr, webUrl, webUrlFile);
-*/
+
       _Bool complete = 0;//complete:0 need to search for prev layer or can ignore, complete:1 means don't need search for prev layer
       int concat_direction = 0;//neg:prev, 0:means the same ignore, pos:concat after current url
       int which = 0;
@@ -414,20 +408,17 @@ prev_justify:
 
       sprintf(pathName, "%s%s\0", outputDir, webUrlFile);
       int fd = open(pathName, O_RDWR|O_EXCL|O_CREAT, 0644);
-      if(fd == -1 && (errno == EEXIST)){
-         continue;
-      }else{
-         fd = open(pathName, O_RDWR, 0644);
-         if(fd == -1){
-#ifdef _TEST_
-            int tmp = errno;
-            printf("%d\n", tmp);
-            printf("open file failed twice in parsingHerf of socket.c about: %s\n", cur_url);
-#endif
+      if(fd == -1){
+         if(errno == EEXIST){
             continue;
+         }else{
+#ifdef _TEST_
+               //printf("open file failed twice in parsingHerf of socket.c about: %s\n", cur_url);
+#endif
+               continue;
          }
       }
-      //printf("%d %d\n%s\n\n\n", complete, concat_direction, webUrl);
+      close(fd);
       sprintf(tmpStr, "%04x\t%s\t\0", strlen(webUrl), webUrl);
       strncat(printBuf, tmpStr, strlen(tmpStr));
       free(aHrefStr);

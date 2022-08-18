@@ -10,6 +10,10 @@
 #include "defineUrlFileLen.h"
 #endif
 
+#ifndef _SIMPLEDISKHASH_H_
+#define _SIMPLEDISKHASH_H_
+#include "simpleDiskHash.h"
+#endif
 /* ---------------------------------------------------------- *
  * First we need to make a standard TCP socket connection.    *
  * create_socket() creates a socket & TCP-connects to server. *
@@ -77,7 +81,6 @@ char *requestWeb(char *def_url, char *outputDir) {
       BIO_printf(outbio, "Could not initialize the OpenSSL library !\n");
 #endif
       goto ssl_fail_error_handle;
-      return SSL_FAIL;
    }
    /* ---------------------------------------------------------- *
     * SSLv23_client_method is deprecated function                *
@@ -93,7 +96,6 @@ char *requestWeb(char *def_url, char *outputDir) {
       BIO_printf(outbio, "Unable to create a new SSL context structure.\n");
 #endif
       goto ssl_fail_error_handle;
-      return SSL_FAIL;
    }
    /* ---------------------------------------------------------- *
     * Disabling SSLv2 will leave v3 and TSLv1 for negotiation    *
@@ -115,7 +117,6 @@ char *requestWeb(char *def_url, char *outputDir) {
 #endif
    }else {
       goto ssl_fail_error_handle;
-      return SSL_FAIL;
    }
    /* ---------------------------------------------------------- *
     * Attach the SSL session to the socket descriptor            *
@@ -147,7 +148,6 @@ char *requestWeb(char *def_url, char *outputDir) {
          printf("%s %s %s %s\n", msg, ERR_lib_error_string(0), ERR_func_error_string(0), ERR_reason_error_string(0));
       }
       goto ssl_fail_error_handle;
-      return SSL_FAIL;
    }else {
 #ifdef _BIO_PRINTF_
       BIO_printf(outbio, "Successfully enabled SSL/TLS session to: %s.\n", dest_url);
@@ -163,7 +163,6 @@ char *requestWeb(char *def_url, char *outputDir) {
       BIO_printf(outbio, "Error: Could not get a certificate from: %s.\n", dest_url);
 #endif
       goto ssl_fail_error_handle;
-      return SSL_FAIL;
    }
 #ifdef _BIO_PRINTF_
    else
@@ -221,7 +220,6 @@ char *requestWeb(char *def_url, char *outputDir) {
       if(!body){
          printf("no web struct found\n");
          goto ssl_fail_error_handle;
-         return SSL_FAIL;
       }
       body += strlen(CRLF);
 
@@ -236,24 +234,30 @@ char *requestWeb(char *def_url, char *outputDir) {
       if(body[strlen(body)-4] == '\r'){
          body[strlen(body)-4] = '\0';
       }
+
       //weburl file
-      char pathName[MAX_CONVERT_URL_SIZE + PATH_MAX];
-      char webUrlFile[MAX_CONVERT_URL_SIZE];
-      url2FileName(def_url, webUrlFile);
-      sprintf(pathName, "%s%s\0", outputDir, webUrlFile);
+      char pathName[PATH_MAX + TABLE_SIZE + NUM_LEN];
+      int hashResult = searchHash(def_url, 1);
+      if(hashResult <= 0){
+         printf("have some error:%s\n", def_url);
+      }
+      if(hashResult <= 0){//0 means search before so can skip it
+         goto ssl_fail_error_handle;
+      }
+      sprintf(pathName, "%s%03d%08x\0", outputDir, hash_func(def_url), hashResult);
+
       //write and wrlock
       struct flock lock;
       char buffer[1024];
-      int fd = open(pathName, O_RDWR);
+      int fd = open(pathName, O_RDWR|O_CREAT|O_EXCL, 0644);
       if(fd == -1){
+         printf("fopen fail: %s %s\n", pathName, def_url);
          goto ssl_fail_error_handle;
-         return SSL_FAIL;
       }
       int res = fcntl(fd, F_SETLKW, &lock);
       int n = read(fd, buffer, sizeof(buffer));
       if(n != 0){
          goto ssl_fail_error_handle;
-         return SSL_FAIL;
       }
       write(fd, body, strlen(body) + 1);
       close(fd);
@@ -279,18 +283,18 @@ char *requestWeb(char *def_url, char *outputDir) {
       }
    }
    if(findNext){
-      char pathName[MAX_CONVERT_URL_SIZE + PATH_MAX];
+      //char pathName[MAX_CONVERT_URL_SIZE + PATH_MAX];
       char webUrl[MAX_CONVERT_URL_SIZE];
-      char webUrlFile[MAX_CONVERT_URL_SIZE];
-      webUrlProcessed(nextUrl, webUrl, webUrlFile);
-      sprintf(pathName, "%s%s\0", outputDir, webUrlFile);
-      int fd = open(pathName, O_RDWR|O_EXCL|O_CREAT, 0644);
-      if(fd == -1 && (errno == EEXIST)){
+      webUrlProcessed(nextUrl, webUrl);
+
+      char pathName[PATH_MAX + NUM_LEN];
+      int hashResult = insertHash(webUrl);
+      if(hashResult > 0){//others has enrolled this url
          findNext = 0;
       }
-      close(fd);
+
       if(findNext){
-         strncpy(nextUrl, webUrl, strlen(webUrlFile) + 1);
+         strncpy(nextUrl, webUrl, strlen(webUrl) + 1);
       }
    }
    /* ---------------------------------------------------------- *
@@ -409,23 +413,13 @@ prev_justify:
       }
       char tmpStr[7 + MAX_CONVERT_URL_SIZE];
       char webUrl[MAX_CONVERT_URL_SIZE];
-      char webUrlFile[MAX_CONVERT_URL_SIZE];
-      char pathName[MAX_CONVERT_URL_SIZE + PATH_MAX];
-      webUrlProcessed(aHrefStr, webUrl, webUrlFile);
-
-      sprintf(pathName, "%s%s\0", outputDir, webUrlFile);
-      int fd = open(pathName, O_RDWR|O_EXCL|O_CREAT, 0644);
-      if(fd == -1){
-         if(errno == EEXIST){
-            continue;
-         }else{
-#ifdef _TEST_
-            //printf("open file failed twice in parsingHerf of socket.c about: %s\n", cur_url);
-#endif
-            continue;
-         }
+      webUrlProcessed(aHrefStr, webUrl);
+      //write to the hash file
+      int hashResult;
+      if((hashResult = insertHash(webUrl)) != 0){
+         continue;
       }
-      close(fd);
+
       sprintf(tmpStr, "%04x\t%s\t\0", strlen(webUrl), webUrl);
       strncat(printBuf, tmpStr, strlen(tmpStr));
       free(aHrefStr);

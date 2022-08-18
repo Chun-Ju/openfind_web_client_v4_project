@@ -15,6 +15,11 @@
 #include "urlProcessed.h"
 #endif
 
+#ifndef _SIMPLEDISKHASH_H_
+#define _SIMPLEDISKHASH_H_
+#include "simpleDiskHash.h"
+#endif
+
 #include "socket.h"
 
 int processCount = 5;
@@ -70,6 +75,7 @@ int forkProcess(int time){
       exit(SUCCESS);
    }
 }
+
 int readUrlFromFile(FILE *fd){
    char *urlBufTmp = (char *)malloc(processCount * urlPerProcess * MAX_CONVERT_URL_SIZE * sizeof(char));
    if(!urlBufTmp){
@@ -82,10 +88,10 @@ int readUrlFromFile(FILE *fd){
          break;
       }
 
-      char url[3 * MAX_URL_SIZE];
+      char url[MAX_CONVERT_URL_SIZE];
       fread(url, tmpCount + 1, 1, fd);
       url[tmpCount] = '\0';
-      strncpy(urlBufTmp + count * 3 * MAX_URL_SIZE, url, tmpCount + 1);
+      strncpy(urlBufTmp + count * MAX_CONVERT_URL_SIZE, url, tmpCount + 1);
    }
    const int diffCount = count % processCount;
    //if == 0 , represent everyone has the same amount to count
@@ -112,18 +118,8 @@ int readUrlFromFile(FILE *fd){
    return SUCCESS;
 }
 
-int main(int argc, char *argv[]){
-   pid_t parentPid = getpid();
-
-   if(argc == 4){
-      processCount = atoi(argv[3]);
-   }else if (argc != 3){
-      return ERR_ARGS;
-   }
-
-   //create directory
-   errno = 0;
-   int ret = mkdir(argv[2], 0777);
+int createDir(char *dir){
+   int ret = mkdir(dir, 0777);
    if(ret == -1){
       switch(errno){
          case EACCES:
@@ -148,40 +144,51 @@ int main(int argc, char *argv[]){
             return ERR_MKDIR;
       }
    }
+   return SUCCESS;
+}
+
+int main(int argc, char *argv[]){
+   pid_t parentPid = getpid();
+   if(argc == 4){
+      processCount = atoi(argv[3]);
+   }else if (argc != 3){
+      return ERR_ARGS;
+   }
+
    outputDir = (char *)malloc((strlen(argv[2]) + 1) * sizeof(char));
    if(!outputDir){
       return ERR_MALLOC;
    }
    strncpy(outputDir, argv[2], strlen(argv[2]) + 1);
+   int dirResult;
+   if((dirResult = createDir(outputDir)) != SUCCESS){
+      free(outputDir);
+      return dirResult;
+   }
+   if((dirResult = createDir(HASH_PATH)) != SUCCESS){
+      free(outputDir);
+      return dirResult;
+   }
    char webUrl[MAX_CONVERT_URL_SIZE];
-   char webUrlFile[MAX_CONVERT_URL_SIZE];
-   webUrlProcessed(argv[1], webUrl, webUrlFile);
+   //char webUrlFile[MAX_CONVERT_URL_SIZE];
+   webUrlProcessed(argv[1], webUrl);
+   //hash for the number and record it later
+   insertHash(webUrl);
 
-   char tmpPathName[MAX_CONVERT_URL_SIZE + PATH_MAX];
-   sprintf(tmpPathName, "%s%s\0", outputDir, webUrlFile);
-   FILE *fd = fopen(tmpPathName, "w+");
-   if(!fd){
-      free(outputDir);
-      return ERR_FOPEN;
-   }
-   fclose(fd);
-
-   int tryMain = 0;
    char *result;
-connectMain:
-   //char *result = requestWeb(webUrl, outputDir);
-   result = requestWeb(webUrl, outputDir);
-   fd = fopen(URL_FILE, "w+");
-   if(!fd){
-      free(outputDir);
-      return ERR_FOPEN;
-   }
-   if(!result){
-      if(tryMain++ < 3){
-         goto connectMain;
-      }else{
+   for(int i = 0; i < RECONNECT_LIMIT; i++){
+      result = requestWeb(webUrl, outputDir);
+      if(result){
+         break;
+      }
+      if(i == RECONNECT_LIMIT - 1){
          return ERR_SOCKET;
       }
+   }
+   FILE *fd = fopen(URL_FILE, "w+");
+   if(!fd){
+      free(outputDir);
+      return ERR_FOPEN;
    }
    fprintf(fd, "%s", result);
    fclose(fd);

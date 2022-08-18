@@ -13,5 +13,4 @@
 #define URL_SAVED_CHARSET_COUNT 19
 #define URL_SAVED_CHARSET "-. ~!*'();:@&=+$,/?%%#[]"
 
-void url2FileName(char *webUrl, char *webUrlFile);
-void webUrlProcessed(char *href, char *webUrl, char *webUrlFile);
+void webUrlProcessed(char *href, char *webUrl);

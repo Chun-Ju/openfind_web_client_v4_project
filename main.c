@@ -1,5 +1,15 @@
 #include "main.h"
 
+#ifndef _ERRDEFINE_H_
+#define _ERRDEFINE_H_
+#include "errDefine.h"
+#endif
+
+#ifndef _DEFINEURLFILELEN_H_
+#define _DEFINEURLFILELEN_H_
+#include "defineUrlFileLen.h"
+#endif
+
 #ifndef _URLPROCESSED_H_
 #define _URLPROCESSED_H_
 #include "urlProcessed.h"
@@ -24,7 +34,7 @@ int forkProcess(int time){
    }else{ //all need to see once
       for(int i = 0; i < urlPerProcess; i++){ //read the whole page of web and download it
          char *tmpUrlStr = urlBuf + ((processCount - time) * urlPerProcess + i) * MAX_CONVERT_URL_SIZE;
-            
+
          if(strcmp(tmpUrlStr, "") == 0){
             break;
          }
@@ -204,7 +214,7 @@ connectMain:
       //call the child process to work
       forkProcess(processCount);
       int status;
-      while(wait(&status) > 0){  
+      while(wait(&status) > 0){
          if(status < 0){ //child process過程中有error發生
             free(urlBuf);
             free(outputDir);

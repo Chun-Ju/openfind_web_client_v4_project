@@ -1,8 +1,3 @@
-#ifndef MAX_URL_SIZE
-#define MAX_URL_SIZE (0x2000)
-#define MAX_CONVERT_URL_SIZE (3*MAX_URL_SIZE)
-#endif
-
 #define MAX_WEB_SIZE (0xfffff)
 #define MAX_PER_SIZE (0xffff)
 

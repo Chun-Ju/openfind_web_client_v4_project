@@ -1,5 +1,10 @@
 #include "urlProcessed.h"
 
+#ifndef _DEFINEURLFILELEN_H_
+#define _DEFINEURLFILELEN_H_
+#include "defineUrlFileLen.h"
+#endif
+
 void charConvertHex(char *originalHref, char *href, int which[MAX_URL_SIZE], int count){
    int last = 0;
    href[0] = '\0';

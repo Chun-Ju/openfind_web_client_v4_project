@@ -4,6 +4,12 @@
 #define _URLPROCESSED_H_
 #include "urlProcessed.h"
 #endif
+
+#ifndef _DEFINEURLFILELEN_H_
+#define _DEFINEURLFILELEN_H_
+#include "defineUrlFileLen.h"
+#endif
+
 /* ---------------------------------------------------------- *
  * First we need to make a standard TCP socket connection.    *
  * create_socket() creates a socket & TCP-connects to server. *
@@ -19,7 +25,9 @@ char *requestWeb(char *def_url, char *outputDir) {
 
    char dest_url[MAX_URL_SIZE];
    char host[MAX_URL_SIZE];
+#ifdef _BIO_PRINTF_
    BIO  *certbio = NULL;
+#endif
    BIO  *outbio = NULL;
    X509 *cert = NULL;
    X509_NAME *certname = NULL;
@@ -28,10 +36,8 @@ char *requestWeb(char *def_url, char *outputDir) {
    SSL *ssl;
    int server = 0;
    int ret, i;
-   
+
    char *result = SSL_FAIL;
-   /*strncpy(dest_url, def_url, MAX_URL_SIZE - 1);
-   dest_url[MAX_URL_SIZE - 1] = '\0';*/
    strncpy(dest_url, def_url, strlen(def_url) + 1);
    get_host(dest_url, host, MAX_URL_SIZE);
    /* ---------------------------------------------------------- *
@@ -49,15 +55,19 @@ char *requestWeb(char *def_url, char *outputDir) {
     * These function calls initialize openssl for correct work.  *
     * ---------------------------------------------------------- */
    OpenSSL_add_all_algorithms();
+#ifdef _BIO_PRINTF_
    ERR_load_BIO_strings();
+#endif
    ERR_load_crypto_strings();
    SSL_load_error_strings();
 
    /* ---------------------------------------------------------- *
     * Create the Input/Output BIO's.                             *
     * ---------------------------------------------------------- */
+#ifdef _BIO_PRINTF_
    certbio = BIO_new(BIO_s_file());
    outbio  = BIO_new_fp(stdout, BIO_NOCLOSE);
+#endif
 
    /* ---------------------------------------------------------- *
     * initialize SSL library and register algorithms             *
@@ -178,13 +188,11 @@ char *requestWeb(char *def_url, char *outputDir) {
     * -----------------------------------------------------------*/
    char str[MAX_URL_SIZE + 0x30];
    sprintf(str, "GET %s HTTP/1.1\r\nHost: %s\r\nConnection: Close\r\n\r\n\0" , subDir, hostname);
-   //sprintf(str, "GET %s HTTP/1.1\r\nHost: %s\r\n\r\n0" , subDir, hostname);
-   //SSL_write(ssl, str, strlen(str));
    int bytes_w = SSL_write(ssl, str, strlen(str));
-   if(bytes_w < 0){
-      int err = SSL_get_error(ssl, bytes_w);
-      printf("%d\n", err);
-   }
+   /*if(bytes_w < 0){
+     int err = SSL_get_error(ssl, bytes_w);
+     printf("%d\n", err);
+     }*/
    char printBuf[MAX_WEB_SIZE];
    char buf[MAX_PER_SIZE];
    int bytes = 1;
@@ -192,7 +200,7 @@ char *requestWeb(char *def_url, char *outputDir) {
       bytes = SSL_read(ssl, buf, sizeof(buf));
       int err = SSL_get_error(ssl, bytes);
       if(bytes < 0){
-         printf("%d\n", err);
+         printf("ERR READ;%d\n", err);
       }
       buf[bytes] = '\0';
       if((bytes > 0) && (strcmp(buf, "0\r\n\r\n") != 0 && strcmp(buf, "\r\n\r\n") != 0)){
@@ -205,7 +213,6 @@ char *requestWeb(char *def_url, char *outputDir) {
    char statusCode[STATUS_CODE_LEN+1];//HTTP/1.1 STATUS_CODE ...
    strncpy(statusCode, printBuf + 9, STATUS_CODE_LEN);
    statusCode[STATUS_CODE_LEN] = '\0';
-   //char *result = SSL_FAIL;
    char nextUrl[MAX_URL_SIZE] = "https://\0";
    _Bool findNext = 0;
    if(strcmp(statusCode, "200") == 0){
@@ -337,7 +344,7 @@ prev_justify:
       switch(aHrefStr[which++]){
          case '#':
             concat_direction = 0;
-         break;
+            break;
          case '.':
             if(which < strlen(aHrefStr)){
                switch(aHrefStr[which++]){
@@ -352,14 +359,14 @@ prev_justify:
                         concat_direction -= 1;
                         goto prev_justify;
                      }
-                  break;
+                     break;
                }
             }
-         break;
+            break;
          case '/': //after host name
             complete = 1;
             concat_direction = -200;
-         break;
+            break;
          default:
             if(strlen(aHrefStr) >= 8){//complete and concat == 0 means don't need to search
                complete = !strncmp(aHrefStr, "https://", 8);
@@ -368,7 +375,7 @@ prev_justify:
                complete = 1;
                concat_direction = 2;
             }
-         break;
+            break;
       }
 
       if(!complete){
@@ -386,18 +393,18 @@ prev_justify:
                strncpy(tmpStrSearch, cur_url, strlen(cur_url) + 1);
                strncat(tmpStrSearch, aHrefStr + 2, strlen(aHrefStr) - 1);
                strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch) + 1);
-            break;
+               break;
             case 2:
                strncpy(tmpStrSearch, cur_url, strlen(cur_url) + 1);
                strncat(tmpStrSearch, aHrefStr, strlen(aHrefStr) + 1);
                strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch) + 1);
-            break;
+               break;
             case -200:
                strncpy(tmpStrSearch, "https://\0", 9);
                strncat(tmpStrSearch, hostname, strlen(hostname) + 1);
                strncat(tmpStrSearch, aHrefStr, strlen(aHrefStr) + 1);
                strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch) + 1);
-            break;
+               break;
          }
       }
       char tmpStr[7 + MAX_CONVERT_URL_SIZE];
@@ -413,9 +420,9 @@ prev_justify:
             continue;
          }else{
 #ifdef _TEST_
-               //printf("open file failed twice in parsingHerf of socket.c about: %s\n", cur_url);
+            //printf("open file failed twice in parsingHerf of socket.c about: %s\n", cur_url);
 #endif
-               continue;
+            continue;
          }
       }
       close(fd);

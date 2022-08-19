@@ -131,11 +131,21 @@ int main(int argc, char *argv[]){
       processCount = atoi(argv[3]);
    }
 
-   outputDir = (char *)malloc((strlen(argv[2]) + 1) * sizeof(char));
-   if(!outputDir){
-      return ERR_MALLOC;
+   if(strcmp(argv[2], "") == 0){
+      outputDir = (char *)malloc((strlen(OUTPUT_DIR) + 1) * sizeof(char));
+      if(!outputDir){
+         return ERR_MALLOC;
+      }
+      strncpy(outputDir, OUTPUT_DIR, strlen(OUTPUT_DIR) + 1);
+   }else{
+      outputDir = (char *)malloc((strlen(argv[2]) + 1) * sizeof(char));
+      if(!outputDir){
+         return ERR_MALLOC;
+      }
+      strncpy(outputDir, argv[2], strlen(argv[2]));
    }
-   strncpy(outputDir, argv[2], strlen(argv[2]) + 1);
+   outputDir[strlen(outputDir)] = '\0';
+
    int ret;
    if((ret = createDir(outputDir)) != SUCCESS){
       free(outputDir);

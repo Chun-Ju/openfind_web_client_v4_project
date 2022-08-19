@@ -20,6 +20,7 @@
 #define urlPerProcess 5//the max amount of url expected tp dispatch to per child process
 
 #define PATH_MAX 0x1000
+#define OUTPUT_DIR "webpage/"
 
 #include "errDefine.h"
 #include "defineUrlFileLen.h"

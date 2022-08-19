@@ -1,3 +1,6 @@
+#ifndef _ERRDEFINE_H_
+#define _ERRDEFINE_H_
+
 #define SUCCESS 0
 
 #define ERR_BASE 0
@@ -11,3 +14,5 @@
 #define ERR_MKDIR_EACCES (ERR_MKDIR-1)
 #define ERR_MKDIR_EEXIST (ERR_MKDIR-2)
 #define ERR_MKDIR_ENAMETOOLONG (ERR_MKDIR-3)
+
+#endif

@@ -1,3 +1,6 @@
+#ifndef _SIMPLEDISKHASH_H_
+#define _SIMPLEDISKHASH_H_
+
 #ifndef _STDIO_H_
 #define _STDIO_H_
 #include <stdio.h>
@@ -36,16 +39,11 @@
 #define K 1024
 #define READ_SIZE (16*K)
 
-#ifndef _ERRDEFINE_H_
-#define _ERRDEFINE_H_
 #include "errDefine.h"
-#endif
-
-#ifndef _DEFINEURLFILELEN_H_
-#define _DEFINEURLFILELEN_H_
 #include "defineUrlFileLen.h"
-#endif
 
 unsigned hash_func(char *key);
 int searchHash(char *key, int externalCaller);
 int insertHash(char *key);
+
+#endif

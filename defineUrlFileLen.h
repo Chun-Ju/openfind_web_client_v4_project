@@ -1,3 +1,6 @@
+#ifndef _DEFINEURLFILELEN_H_
+#define _DEFINEURLFILELEN_H_
+
 /* ------------------------------------------------------------ *
  * fprintf format "%0[NUM_LEN]x%0[MAX_CONVERT_URL_SIZE_LEN]x%s" *
  * ------------------------------------------------------------ */
@@ -24,3 +27,5 @@
  * reconnect time limit *
  * -------------------- */
 #define RECONNECT_LIMIT 3
+
+#endif

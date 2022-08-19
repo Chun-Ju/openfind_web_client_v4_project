@@ -155,6 +155,10 @@ int main(int argc, char *argv[]){
       free(outputDir);
       return ret;
    }
+
+   if(strcmp(argv[1], "") == 0){//empty url is quite serious, so retrun with error arguments
+      return ERR_ARGS;
+   }
    char webUrl[MAX_CONVERT_URL_SIZE];
    webUrlProcessed(argv[1], webUrl);
    insertHash(webUrl);

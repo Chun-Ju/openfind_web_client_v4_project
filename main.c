@@ -124,10 +124,11 @@ int createDir(char *dir){
 }
 
 int main(int argc, char *argv[]){
-   if(argc == 4){
-      processCount = atoi(argv[3]);
-   }else if (argc != 3){
+
+   if(argc < 3){
       return ERR_ARGS;
+   }else if(argc == 4){
+      processCount = atoi(argv[3]);
    }
 
    outputDir = (char *)malloc((strlen(argv[2]) + 1) * sizeof(char));

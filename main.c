@@ -136,14 +136,14 @@ int main(int argc, char *argv[]){
       return ERR_MALLOC;
    }
    strncpy(outputDir, argv[2], strlen(argv[2]) + 1);
-   int dirResult;
-   if((dirResult = createDir(outputDir)) != SUCCESS){
+   int ret;
+   if((ret = createDir(outputDir)) != SUCCESS){
       free(outputDir);
-      return dirResult;
+      return ret;
    }
-   if((dirResult = createDir(HASH_PATH)) != SUCCESS){
+   if((ret = createDir(HASH_PATH)) != SUCCESS){
       free(outputDir);
-      return dirResult;
+      return ret;
    }
    char webUrl[MAX_CONVERT_URL_SIZE];
    webUrlProcessed(argv[1], webUrl);
@@ -182,13 +182,12 @@ int main(int argc, char *argv[]){
          return ERR_FOPEN;
       }
       fseek(fd, lastPos, SEEK_SET);
-      int readResult;
-      readResult = readUrlFromFile(fd);
-      if(readResult != SUCCESS){
+      ret = readUrlFromFile(fd);
+      if(ret != SUCCESS){
          free(urlBuf);
          fclose(fd);
          free(outputDir);
-         return readResult;
+         return ret;
       }
       lastPos = ftell(fd);
       fclose(fd);

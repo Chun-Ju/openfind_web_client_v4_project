@@ -236,14 +236,14 @@ read_again:
       }
       //weburl file
       char pathName[PATH_MAX + TABLE_SIZE + NUM_LEN];
-      int hashResult = searchHash(def_url, 1);
-      if(hashResult <= 0){
+      ret = searchHash(def_url, 1);
+      if(ret <= 0){
          printf("have some error:%s\n", def_url);
       }
-      if(hashResult <= 0){//0 means search before so can skip it
+      if(ret <= 0){//0 means search before so can skip it
          goto ssl_fail_error_handle;
       }
-      sprintf(pathName, "%s%03d%08x\0", outputDir, hash_func(def_url), hashResult);
+      sprintf(pathName, "%s%03d%08x\0", outputDir, hash_func(def_url), ret);
 
       //write and wrlock
       struct flock lock;
@@ -288,8 +288,8 @@ read_again:
       webUrlProcessed(nextUrl, webUrl);
 
       char pathName[PATH_MAX + NUM_LEN];
-      int hashResult = insertHash(webUrl);
-      if(hashResult > 0){//others has enrolled this url
+      ret = insertHash(webUrl);
+      if(ret > 0){//others has enrolled this url
          findNext = 0;
       }
 
@@ -415,8 +415,8 @@ prev_justify:
       char webUrl[MAX_CONVERT_URL_SIZE];
       webUrlProcessed(aHrefStr, webUrl);
       //write to the hash file
-      int hashResult;
-      if((hashResult = insertHash(webUrl)) != 0){
+      int ret;
+      if((ret = insertHash(webUrl)) != 0){
          continue;
       }
 

@@ -17,3 +17,25 @@
 #define urlPerProcess 5//the max amount of url expected tp dispatch to per child process
 
 #define PATH_MAX 0x1000
+
+#ifndef _ERRDEFINE_H_
+#define _ERRDEFINE_H_
+#include "errDefine.h"
+#endif
+
+#ifndef _DEFINEURLFILELEN_H_
+#define _DEFINEURLFILELEN_H_
+#include "defineUrlFileLen.h"
+#endif
+
+#ifndef _URLPROCESSED_H_
+#define _URLPROCESSED_H_
+#include "urlProcessed.h"
+#endif
+
+#ifndef _SIMPLEDISKHASH_H_
+#define _SIMPLEDISKHASH_H_
+#include "simpleDiskHash.h"
+#endif
+
+#include "socket.h"

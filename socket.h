@@ -34,4 +34,19 @@
 
 #define STATUS_CODE_LEN 3
 
+#ifndef _URLPROCESSED_H_
+#define _URLPROCESSED_H_
+#include "urlProcessed.h"
+#endif
+
+#ifndef _DEFINEURLFILELEN_H_
+#define _DEFINEURLFILELEN_H_
+#include "defineUrlFileLen.h"
+#endif
+
+#ifndef _SIMPLEDISKHASH_H_
+#define _SIMPLEDISKHASH_H_
+#include "simpleDiskHash.h"
+#endif
+
 char *requestWeb(char *def_url, char *outputDir);

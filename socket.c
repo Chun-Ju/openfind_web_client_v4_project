@@ -1,19 +1,5 @@
 #include "socket.h"
 
-#ifndef _URLPROCESSED_H_
-#define _URLPROCESSED_H_
-#include "urlProcessed.h"
-#endif
-
-#ifndef _DEFINEURLFILELEN_H_
-#define _DEFINEURLFILELEN_H_
-#include "defineUrlFileLen.h"
-#endif
-
-#ifndef _SIMPLEDISKHASH_H_
-#define _SIMPLEDISKHASH_H_
-#include "simpleDiskHash.h"
-#endif
 /* ---------------------------------------------------------- *
  * First we need to make a standard TCP socket connection.    *
  * create_socket() creates a socket & TCP-connects to server. *
@@ -21,10 +7,12 @@
 int create_socket(char[], BIO *);
 int get_host(char *url, char *host, int host_size);
 char *parsingHerf(char *, char *);
+
 char hostname[256] = "";
 char cur_url[MAX_CONVERT_URL_SIZE];
 
 char *requestWeb(char *def_url, char *outputDir) {
+   memset(cur_url, '\0', MAX_CONVERT_URL_SIZE);
    strncpy(cur_url, def_url, strlen(def_url) + 1);
 
    char dest_url[MAX_URL_SIZE];
@@ -193,13 +181,25 @@ char *requestWeb(char *def_url, char *outputDir) {
      printf("%d\n", err);
      }*/
    char printBuf[MAX_WEB_SIZE];
+   memset(printBuf, '\0', MAX_WEB_SIZE);
    char buf[MAX_PER_SIZE];
    int bytes = 1;
    while(bytes > 0){
+      int retry = 0;
+read_again:
       bytes = SSL_read(ssl, buf, sizeof(buf));
       int err = SSL_get_error(ssl, bytes);
       if(bytes < 0){
-         printf("ERR READ;%d\n", err);
+         if(err == SSL_ERROR_WANT_READ){
+            if(retry++ < RECONNECT_LIMIT){
+               goto read_again;
+            }else{
+#ifdef _TEST_
+               printf("retry read:%d times so give up.\n", RECONNECT_LIMIT);
+#endif
+               break;
+            }
+         }
       }
       buf[bytes] = '\0';
       if((bytes > 0) && (strcmp(buf, "0\r\n\r\n") != 0 && strcmp(buf, "\r\n\r\n") != 0)){
@@ -234,7 +234,6 @@ char *requestWeb(char *def_url, char *outputDir) {
       if(body[strlen(body)-4] == '\r'){
          body[strlen(body)-4] = '\0';
       }
-
       //weburl file
       char pathName[PATH_MAX + TABLE_SIZE + NUM_LEN];
       int hashResult = searchHash(def_url, 1);
@@ -261,6 +260,7 @@ char *requestWeb(char *def_url, char *outputDir) {
       }
       write(fd, body, strlen(body) + 1);
       close(fd);
+
       result = parsingHerf(body, outputDir);
    }else{//according status code go to corresponding address
       //catch the location
@@ -497,12 +497,12 @@ int create_socket(char url_str[], BIO *out) {
    dest_addr.sin_addr.s_addr = *(long*)(host->h_addr);
 
    /* about timeout by Felicia */
-   /*struct timeval tv;
-     tv.tv_sec  = 10;
-     tv.tv_usec = 0;
-     setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (char*)&tv, sizeof(struct timeval));
-     setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval));
-     *//* end of timeout */
+   struct timeval tv;
+   tv.tv_sec  = 10;
+   tv.tv_usec = 0;
+   setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (char*)&tv, sizeof(struct timeval));
+   setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval));
+   /* end of timeout */
 
    /* ---------------------------------------------------------- *
     * Zeroing the rest of the struct                             *

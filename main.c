@@ -1,34 +1,10 @@
 #include "main.h"
 
-#ifndef _ERRDEFINE_H_
-#define _ERRDEFINE_H_
-#include "errDefine.h"
-#endif
-
-#ifndef _DEFINEURLFILELEN_H_
-#define _DEFINEURLFILELEN_H_
-#include "defineUrlFileLen.h"
-#endif
-
-#ifndef _URLPROCESSED_H_
-#define _URLPROCESSED_H_
-#include "urlProcessed.h"
-#endif
-
-#ifndef _SIMPLEDISKHASH_H_
-#define _SIMPLEDISKHASH_H_
-#include "simpleDiskHash.h"
-#endif
-
-#include "socket.h"
-
 int processCount = 5;
 char *outputDir;
 char *urlBuf;
-void dumpUrlNum();
 
 //error code of child process cannot exceed -256
-//url amount of a process need to read need to be less than 256
 int forkProcess(int time){
    if(time == 0){
       return SUCCESS;
@@ -170,9 +146,7 @@ int main(int argc, char *argv[]){
       return dirResult;
    }
    char webUrl[MAX_CONVERT_URL_SIZE];
-   //char webUrlFile[MAX_CONVERT_URL_SIZE];
    webUrlProcessed(argv[1], webUrl);
-   //hash for the number and record it later
    insertHash(webUrl);
 
    char *result;
@@ -247,12 +221,4 @@ int main(int argc, char *argv[]){
    free(urlBuf);
    free(outputDir);
    return SUCCESS;
-}
-
-void dumpUrlNum(){
-   for(int i = 0; i < processCount; i++){
-      for(int j = 0; j < urlPerProcess; j++){
-         printf("%d %d %s\n", i, j,urlBuf + (i * urlPerProcess + j) * MAX_CONVERT_URL_SIZE);
-      }
-   }
 }

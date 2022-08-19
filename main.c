@@ -124,7 +124,6 @@ int createDir(char *dir){
 }
 
 int main(int argc, char *argv[]){
-   pid_t parentPid = getpid();
    if(argc == 4){
       processCount = atoi(argv[3]);
    }else if (argc != 3){

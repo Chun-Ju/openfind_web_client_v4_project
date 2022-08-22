@@ -97,28 +97,11 @@ int readUrlFromFile(FILE *fd){
 int createDir(char *dir){
    int ret = mkdir(dir, 0777);
    if(ret == -1){
-      switch(errno){
-         case EACCES:
+      ret = errno;
 #ifdef _TEST_
-            printf("the parent dir doesn't allow write");
+      printf("MKDIR ERROR: %s\n", strerror(ret));
 #endif
-            return ERR_MKDIR_EACCES;
-         case EEXIST:
-#ifdef _TEST_
-            printf("pathname already exists");
-#endif
-            return ERR_MKDIR_EEXIST;
-         case ENAMETOOLONG:
-#ifdef _TEST_
-            printf("pathname is too long");
-#endif
-            return ERR_MKDIR_ENAMETOOLONG;
-         default:
-#ifdef _TEST_
-            printf("mkdir");
-#endif
-            return ERR_MKDIR;
-      }
+      return ERR_MKDIR;
    }
    return SUCCESS;
 }

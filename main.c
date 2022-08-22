@@ -19,7 +19,7 @@ int forkProcess(int time){
          if(strcmp(tmpUrlStr, "") == 0){
             break;
          }
-         char *result = requestWeb(tmpUrlStr, outputDir);
+         char *result = requestWeb(tmpUrlStr, outputDir, 0);
          if(!result){
             continue;
          }
@@ -148,7 +148,7 @@ int main(int argc, char *argv[]){
 
    char *result;
    for(int i = 0; i < RECONNECT_LIMIT; i++){
-      result = requestWeb(webUrl, outputDir);
+      result = requestWeb(webUrl, outputDir, 1);
       if(result){
          break;
       }

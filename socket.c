@@ -4,23 +4,22 @@
  * First we need to make a standard TCP socket connection.    *
  * create_socket() creates a socket & TCP-connects to server. *
  * ---------------------------------------------------------- */
-int create_socket(char[], BIO *);
-int get_host(char *url, char *host, int host_size);
+int create_socket(char[], _Bool);
+int get_host(char *, char *, int);
 char *parsingHerf(char *, char *);
+_Bool equalDomain(char *, char *);
 
-char hostname[256] = "";
+char hostname[MAX_URL_SIZE] = "\0";
+char curhostname[MAX_URL_SIZE] = "\0";
 char cur_url[MAX_CONVERT_URL_SIZE];
 
-char *requestWeb(char *def_url, char *outputDir) {
+char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
+
    memset(cur_url, '\0', MAX_CONVERT_URL_SIZE);
    strncpy(cur_url, def_url, strlen(def_url) + 1);
 
    char dest_url[MAX_URL_SIZE];
    char host[MAX_URL_SIZE];
-#ifdef _BIO_PRINTF_
-   BIO  *certbio = NULL;
-#endif
-   BIO  *outbio = NULL;
    X509 *cert = NULL;
    X509_NAME *certname = NULL;
    const SSL_METHOD *method;
@@ -32,6 +31,13 @@ char *requestWeb(char *def_url, char *outputDir) {
    char *result = SSL_FAIL;
    strncpy(dest_url, def_url, strlen(def_url) + 1);
    get_host(dest_url, host, MAX_URL_SIZE);
+   get_host(dest_url, curhostname, MAX_URL_SIZE);
+
+   if(strcmp(hostname, "") != 0){
+      if(!equalDomain(hostname, curhostname)){
+         return result;
+      }
+   }
    /* ---------------------------------------------------------- *
     * Add to solve the sub directory of the website. by Felicia  *
     * ---------------------------------------------------------- */
@@ -47,27 +53,13 @@ char *requestWeb(char *def_url, char *outputDir) {
     * These function calls initialize openssl for correct work.  *
     * ---------------------------------------------------------- */
    OpenSSL_add_all_algorithms();
-#ifdef _BIO_PRINTF_
-   ERR_load_BIO_strings();
-#endif
    ERR_load_crypto_strings();
    SSL_load_error_strings();
-
-   /* ---------------------------------------------------------- *
-    * Create the Input/Output BIO's.                             *
-    * ---------------------------------------------------------- */
-#ifdef _BIO_PRINTF_
-   certbio = BIO_new(BIO_s_file());
-   outbio  = BIO_new_fp(stdout, BIO_NOCLOSE);
-#endif
 
    /* ---------------------------------------------------------- *
     * initialize SSL library and register algorithms             *
     * ---------------------------------------------------------- */
    if(SSL_library_init() < 0){
-#ifdef _BIO_PRINTF_
-      BIO_printf(outbio, "Could not initialize the OpenSSL library !\n");
-#endif
       goto ssl_fail_error_handle;
    }
    /* ---------------------------------------------------------- *
@@ -80,9 +72,6 @@ char *requestWeb(char *def_url, char *outputDir) {
     * Try to create a new SSL context                            *
     * ---------------------------------------------------------- */
    if ( (ctx = SSL_CTX_new(method)) == NULL){
-#ifdef _BIO_PRINTF_
-      BIO_printf(outbio, "Unable to create a new SSL context structure.\n");
-#endif
       goto ssl_fail_error_handle;
    }
    /* ---------------------------------------------------------- *
@@ -98,12 +87,8 @@ char *requestWeb(char *def_url, char *outputDir) {
    /* ---------------------------------------------------------- *
     * Make the underlying TCP socket connection                  *
     * ---------------------------------------------------------- */
-   server = create_socket(dest_url, outbio);
-   if(server != 0){
-#ifdef _BIO_PRINTF_
-      BIO_printf(outbio, "Successfully made the TCP connection to: %s.\n", dest_url);
-#endif
-   }else {
+   server = create_socket(dest_url, parent);
+   if(server == 0){
       goto ssl_fail_error_handle;
    }
    /* ---------------------------------------------------------- *
@@ -121,9 +106,6 @@ char *requestWeb(char *def_url, char *outputDir) {
     * ---------------------------------------------------------- */
    if ((ret = SSL_connect(ssl)) != 1 ) {
       int err;
-#ifdef _BIO_PRINTF_
-      BIO_printf(outbio, "Error: Could not build a SSL session to: %s.\n", dest_url);
-#endif
       /* ---------------------------------------------------------- *
        * Print SSL-connect error message by andric                  *
        * ---------------------------------------------------------- */
@@ -136,10 +118,6 @@ char *requestWeb(char *def_url, char *outputDir) {
          printf("%s %s %s %s\n", msg, ERR_lib_error_string(0), ERR_func_error_string(0), ERR_reason_error_string(0));
       }
       goto ssl_fail_error_handle;
-   }else {
-#ifdef _BIO_PRINTF_
-      BIO_printf(outbio, "Successfully enabled SSL/TLS session to: %s.\n", dest_url);
-#endif
    }
 
    /* ---------------------------------------------------------- *
@@ -147,29 +125,14 @@ char *requestWeb(char *def_url, char *outputDir) {
     * ---------------------------------------------------------- */
    cert = SSL_get_peer_certificate(ssl);
    if (cert == NULL){
-#ifdef _BIO_PRINTF_
-      BIO_printf(outbio, "Error: Could not get a certificate from: %s.\n", dest_url);
-#endif
       goto ssl_fail_error_handle;
    }
-#ifdef _BIO_PRINTF_
-   else
-      BIO_printf(outbio, "Retrieved the server's certificate from: %s.\n", dest_url);
-#endif
    /* ---------------------------------------------------------- *
     * extract various certificate information                    *
     * -----------------------------------------------------------*/
    certname = X509_NAME_new();
    certname = X509_get_subject_name(cert);
 
-   /* ---------------------------------------------------------- *
-    * display the cert subject here                              *
-    * -----------------------------------------------------------*/
-#ifdef _BIO_PRINTF_
-   BIO_printf(outbio, "Displaying the certificate subject data:\n");
-   X509_NAME_print_ex(outbio, certname, 0, 0);
-   BIO_printf(outbio, "\n");
-#endif
    /* ---------------------------------------------------------- *
     * recv the message or the webpage structure by Felicia       *
     * -----------------------------------------------------------*/
@@ -237,10 +200,8 @@ read_again:
       //weburl file
       char pathName[PATH_MAX + TABLE_SIZE + NUM_LEN];
       ret = searchHash(def_url, 1);
-      if(ret <= 0){
-         printf("have some error:%s\n", def_url);
-      }
       if(ret <= 0){//0 means search before so can skip it
+         printf("have some error:%s\n", def_url);
          goto ssl_fail_error_handle;
       }
       sprintf(pathName, "%s%03d%08x\0", outputDir, hash_func(def_url), ret);
@@ -283,7 +244,6 @@ read_again:
       }
    }
    if(findNext){
-      //char pathName[MAX_CONVERT_URL_SIZE + PATH_MAX];
       char webUrl[MAX_CONVERT_URL_SIZE];
       webUrlProcessed(nextUrl, webUrl);
 
@@ -305,14 +265,12 @@ ssl_fail_error_handle:
    close(server);
    X509_free(cert);
    SSL_CTX_free(ctx);
-#ifdef _BIO_PRINTF_
-   BIO_printf(outbio, "Finished SSL/TLS connection with server: %s.\n", dest_url);
-#endif
    if(!findNext){
       return result;
    }else{
-      return requestWeb(nextUrl, outputDir);
+      return requestWeb(nextUrl, outputDir, parent);
    }
+
 }
 
 
@@ -320,6 +278,7 @@ ssl_fail_error_handle:
  *           parsing all the href include in webpage          *
  * ---------------------------------------------------------- */
 char* parsingHerf(char * web, char *outputDir){
+
    char *printBuf = (char *)malloc(MAX_WEB_SIZE * sizeof(char));
    if(!printBuf){
       return NULL;
@@ -419,75 +378,82 @@ prev_justify:
       if((ret = insertHash(webUrl)) != 0){
          continue;
       }
+      /* TO COMPARE IS IT THE SAME HOST */
+      char tmphost[MAX_URL_SIZE];
+      get_host(webUrl, tmphost, MAX_URL_SIZE);
+      if(!equalDomain(hostname, tmphost)){
+         continue;
+      }
 
       sprintf(tmpStr, "%04x\t%s\t\0", strlen(webUrl), webUrl);
       strncat(printBuf, tmpStr, strlen(tmpStr));
       free(aHrefStr);
    }
    return printBuf;
+
 }
 
 /* ---------------------------------------------------------- *
  * create_socket() creates the socket & TCP-connect to server *
  * ---------------------------------------------------------- */
-int create_socket(char url_str[], BIO *out) {
+int create_socket(char url_str[], _Bool parent) {
+
    int sockfd;
-   //char hostname[256] = "";
    char portnum[6] = "443";
    char proto[6] = "";
    char *tmp_ptr = NULL;
    int  port;
    struct hostent *host;
    struct sockaddr_in dest_addr;
-   //tmphost
-   char tmpHost[MAX_URL_SIZE];
-   get_host(url_str, tmpHost, MAX_URL_SIZE);
-   if(strstr(url_str, tmpHost)){
-      int a = (strstr(url_str, tmpHost) + strlen(tmpHost)) - url_str;
-      url_str[a]  = '\0';
-   }else{
-      return SOCKET_FAIL;
-   }
-   //printf("%s %s\n", url_str, tmpHost);
-   /* ---------------------------------------------------------- *
-    * Remove the final / from url_str, if there is one           *
-    * ---------------------------------------------------------- */
-   if (url_str[strlen(url_str)] == '/')
-      url_str[strlen(url_str)] = '\0';
-
-   /* ---------------------------------------------------------- *
-    * the first : ends the protocol string, i.e. http            *
-    * ---------------------------------------------------------- */
-   if(strchr(url_str, ':')){
-      strncpy(proto, url_str, (strchr(url_str, ':')-url_str));
+   if(parent){
+      memset(hostname, '\0', MAX_URL_SIZE);
+      //tmphost
+      char tmpHost[MAX_URL_SIZE];
+      get_host(url_str, tmpHost, MAX_URL_SIZE);
+      if(strstr(url_str, tmpHost)){
+         int a = (strstr(url_str, tmpHost) + strlen(tmpHost)) - url_str;
+         url_str[a]  = '\0';
+      }else{
+         return SOCKET_FAIL;
+      }
+      //printf("%s %s\n", url_str, tmpHost);
+      /* ---------------------------------------------------------- *
+       * Remove the final / from url_str, if there is one           *
+       * ---------------------------------------------------------- */
+      if (url_str[strlen(url_str)] == '/')
+         url_str[strlen(url_str)] = '\0';
 
       /* ---------------------------------------------------------- *
-       * the hostname starts after the "://" part                   *
+       * the first : ends the protocol string, i.e. http            *
        * ---------------------------------------------------------- */
-      strncpy(hostname, strstr(url_str, "://")+3, sizeof(hostname));
-   }else{
-      strncpy(hostname, url_str, strlen(url_str));
-   }
-   /* ---------------------------------------------------------- *
-    * if the hostname contains a colon :, we got a port number   *
-    * ---------------------------------------------------------- */
-   if (strchr(hostname, ':')) {
-      tmp_ptr = strchr(hostname, ':');
-      /* the last : starts the port number, if avail, i.e. 8443 */
-      strncpy(portnum, tmp_ptr+1,  sizeof(portnum));
-      *tmp_ptr = '\0';
+      if(strchr(url_str, ':')){
+         strncpy(proto, url_str, (strchr(url_str, ':')-url_str));
+
+         /* ---------------------------------------------------------- *
+          * the hostname starts after the "://" part                   *
+          * ---------------------------------------------------------- */
+         strncpy(hostname, strstr(url_str, "://")+3, sizeof(hostname));
+      }else{
+         strncpy(hostname, url_str, strlen(url_str));
+      }
+      /* ---------------------------------------------------------- *
+       * if the hostname contains a colon :, we got a port number   *
+       * ---------------------------------------------------------- */
+      if (strchr(hostname, ':')) {
+         tmp_ptr = strchr(hostname, ':');
+         /* the last : starts the port number, if avail, i.e. 8443 */
+         strncpy(portnum, tmp_ptr+1,  sizeof(portnum));
+         *tmp_ptr = '\0';
+      }
    }
    port = atoi(portnum);
-
+   if(strcmp(curhostname, hostname) != 0){
+      strncpy(hostname, curhostname, strlen(curhostname) + 1);
+   }
    if ((host = gethostbyname(hostname)) == NULL) {
-#ifdef _BIO_PRINTF_
-      BIO_printf(out, "Error: Cannot resolve hostname %s.\n",  cur_url, hostname);
-#endif
-      //BIO_printf(out, "Error: Cannot resolve hostname %s.\n",  cur_url, hostname);
       //abort();
       return SOCKET_FAIL;
    }
-
    /* ---------------------------------------------------------- *
     * create the basic TCP socket                                *
     * ---------------------------------------------------------- */
@@ -513,18 +479,13 @@ int create_socket(char url_str[], BIO *out) {
    /* ---------------------------------------------------------- *
     * Try to make the host connect here                          *
     * ---------------------------------------------------------- */
-   if (connect(sockfd, (struct sockaddr *) &dest_addr,
-            sizeof(struct sockaddr)) == -1 ) {
-#ifdef _BIO_PRINTF_
-      BIO_printf(out, "Error: Cannot connect to host %s [%s] on port %d.\n",
-            hostname, tmp_ptr, port);
-#endif
-   }
+   connect(sockfd, (struct sockaddr *) &dest_addr, sizeof(struct sockaddr));
    return sockfd;
+
 }
 
-int get_host(char *url, char *host, int host_size)
-{
+int get_host(char *url, char *host, int host_size){
+
    char *pch;
    pch = strstr(url, "//");
    if (pch == NULL) {
@@ -545,4 +506,31 @@ int get_host(char *url, char *host, int host_size)
       *pch = '\0';
    }
    return 0;
+
+}
+
+//1:same domain 0:not same domain
+_Bool equalDomain(char* dmn1, char *dmn2){
+
+   /* TO COMPARE IS IT THE SAME HOST */
+   if(strcmp(dmn1, dmn2) == 0){
+      return SAME;
+   }
+   if(strlen(dmn2) > strlen(dmn1)){
+      char *tmphostRoot = strchr(dmn2, '.');
+      if(tmphostRoot){
+         if(strcmp((tmphostRoot + 1), dmn1) == 0){
+            return SAME;
+         }
+      }
+   }else if(strlen(dmn2) < strlen(dmn1)){//dmn2 shorter than dmn1
+      char *tmphostRoot = strchr(dmn1, '.');
+      if(tmphostRoot){
+         if(strcmp((tmphostRoot + 1), dmn2) == 0){
+            return SAME;
+         }
+      }
+   }
+   return NOT_SAME;
+
 }

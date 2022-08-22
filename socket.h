@@ -35,12 +35,15 @@
 #define SOCKET_FAIL 0
 #define SSL_FAIL NULL
 
+#define SAME 1
+#define NOT_SAME 0
+
 #define STATUS_CODE_LEN 3
 
 #include "urlProcessed.h"
 #include "defineUrlFileLen.h"
 #include "simpleDiskHash.h"
 
-char *requestWeb(char *def_url, char *outputDir);
+char *requestWeb(char *def_url, char *outputDir, _Bool parent);
 
 #endif

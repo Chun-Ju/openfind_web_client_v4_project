@@ -152,9 +152,9 @@ int main(int argc, char *argv[]){
       if(result){
          break;
       }
-      if(i == RETRY_LIMIT - 1){
-         return ERR_SOCKET;
-      }
+   }
+   if(!result){
+      return ERR_SOCKET;
    }
    FILE *fd = fopen(URL_FILE, "w+");
    if(!fd){

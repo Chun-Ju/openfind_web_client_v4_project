@@ -40,8 +40,8 @@
 
 #define STATUS_CODE_LEN 3
 
-#define HTTPS_PROTOCOL_STR "https://"
-#define HTTP_PROTOCOL_STR "http://"
+#define HTTPS_PROTOCOL_STR "https://\0"
+#define HTTP_PROTOCOL_STR "http://\0"
 
 #include "urlProcessed.h"
 #include "defineUrlFileLen.h"

@@ -185,7 +185,7 @@ read_again:
    char statusCode[STATUS_CODE_LEN+1];//HTTP/1.1 STATUS_CODE ...
    strncpy(statusCode, printBuf + 9, STATUS_CODE_LEN);
    statusCode[STATUS_CODE_LEN] = '\0';
-   char nextUrl[MAX_URL_SIZE] = "https://\0";
+   char nextUrl[MAX_URL_SIZE] = HTTPS_PROTOCOL_STR;
    _Bool findNext = 0;
    if(strcmp(statusCode, "200") == 0){
       char *CRLF = "\r\n\r\n";

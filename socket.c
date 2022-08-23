@@ -299,15 +299,15 @@ char* parsingHerf(char * web, char *outputDir){
       return NULL;
    }
 
-   char *ahrefStart = "<a href=\"\0";
-   char *ahrefEnd = "\"";
-   char *ahrefStr;
-   while((ahrefStr = strstr(web, ahrefStart))){
-      int length = strlen(web) - (int)(ahrefStr-web);
-      strncpy(web, ahrefStr + strlen(ahrefStart), length - strlen(ahrefStart));
-      web[length-strlen(ahrefStart)] = '\0';
+   char *tagStart = "<a href=\"\0";
+   char *tagEnd = "\"";
+   char *strAfterTag;
+   while((strAfterTag = strstr(web, tagStart))){
+      int length = strlen(web) - (int)(strAfterTag - web);
+      strncpy(web, strAfterTag + strlen(tagStart), length - strlen(tagStart));
+      web[length-strlen(tagStart)] = '\0';
 
-      char *ahrefStrEnd = strstr(web, ahrefEnd);
+      char *ahrefStrEnd = strstr(web, tagEnd);
       if(!ahrefStrEnd){
          continue;
       }

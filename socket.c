@@ -376,7 +376,7 @@ prev_justify:
                strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch) + 1);
                break;
             case -200:
-               strncpy(tmpStrSearch, HTTPS_PROTOCOL_STR, 9);
+               strncpy(tmpStrSearch, HTTPS_PROTOCOL_STR, strlen(HTTPS_PROTOCOL_STR)+ 1);
                strncat(tmpStrSearch, hostname, strlen(hostname) + 1);
                strncat(tmpStrSearch, aHrefStr, strlen(aHrefStr) + 1);
                strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch) + 1);

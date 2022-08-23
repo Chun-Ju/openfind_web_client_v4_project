@@ -142,16 +142,16 @@ char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
 write_again:
    bytes_w = SSL_write(ssl, str, strlen(str));
    if(bytes_w < 0){
-     int err = SSL_get_error(ssl, bytes_w);
-     if((err == SSL_ERROR_WANT_WRITE) && (retry++ < RETRY_LIMIT)){
-        sleep(1);
-        goto write_again;
-     }else{
+      int err = SSL_get_error(ssl, bytes_w);
+      if((err == SSL_ERROR_WANT_WRITE) && (retry++ < RETRY_LIMIT)){
+         sleep(1);
+         goto write_again;
+      }else{
 #ifdef _TEST_
-        printf("retry write:%d times so give up.\n", RETRY_LIMIT);
+         printf("retry write:%d times so give up.\n", RETRY_LIMIT);
 #endif
-        goto ssl_fail_error_handle;
-     }
+         goto ssl_fail_error_handle;
+      }
    }
    char printBuf[MAX_WEB_SIZE];
    memset(printBuf, '\0', MAX_WEB_SIZE);
@@ -162,7 +162,10 @@ write_again:
 read_again:
       bytes = SSL_read(ssl, buf, sizeof(buf));
       int err = SSL_get_error(ssl, bytes);
-      if(bytes < 0){
+      if(bytes > 0){
+         buf[bytes] = '\0';
+         strncat(printBuf, buf, bytes+1);
+      }else if(bytes < 0){
          if((err != SSL_ERROR_WANT_READ) && (retry++ < RETRY_LIMIT)){
             sleep(1);
             goto read_again;
@@ -172,11 +175,7 @@ read_again:
 #endif
             break;
          }
-      }
-      buf[bytes] = '\0';
-      if((bytes > 0) && (strcmp(buf, "0\r\n\r\n") != 0 && strcmp(buf, "\r\n\r\n") != 0)){
-         strncat(printBuf, buf, bytes+1);
-      }else{
+      }else if(err != SSL_ERROR_ZERO_RETURN){//bytes == 0, and SSL_ERROR_ZERO_RETURN means close normally, others mean error
          break;
       }
    }

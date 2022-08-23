@@ -404,14 +404,8 @@ prev_justify:
          tmpStrSearch[strlen(tmpStrSearch) - 1] == '\0';
       }
       char *lastPos = strrchr(tmpStrSearch, '/');//continue above example, lastPos = /#a,so what we want is (lastPos + 1)
-      if(lastPos){
-         if(*(lastPos+1) == '#'){
-            *(lastPos+1) = '\0';
-         }else if(strncmp((lastPos+1), "mailto:", 7) == 0){
-            *(lastPos+1) = '\0';
-         }else if(strncmp((lastPos+1), "tel:", 4) == 0){
-            *(lastPos+1) = '\0';
-         }
+      if((lastPos) && (*(lastPos+1) == '#') || (strncmp((lastPos+1), "mailto:", 7) == 0) || (strncmp((lastPos+1), "tel:", 4) == 0)){//if #.. mailto: tel: then skip last part
+         *(lastPos+1) = '\0';
       }
       strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch)+1);
 

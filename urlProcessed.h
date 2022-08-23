@@ -14,7 +14,7 @@
 #endif
 
 #define URL_SAVED_CHARSET_COUNT 19
-#define URL_SAVED_CHARSET "-. ~!*'();:@&=+$,/?%%#[]"
+#define URL_SAVED_CHARSET "-_.~!*'();:@&=+$,/?%%#[]"
 
 #include "defineUrlFileLen.h"
 

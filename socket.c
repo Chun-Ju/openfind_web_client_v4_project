@@ -14,7 +14,6 @@ char curhostname[MAX_URL_SIZE] = "\0";
 char cur_url[MAX_CONVERT_URL_SIZE];
 
 char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
-
    memset(cur_url, '\0', MAX_CONVERT_URL_SIZE);
    strncpy(cur_url, def_url, strlen(def_url) + 1);
 
@@ -237,7 +236,7 @@ read_again:
          }
          if(strcmp(statusCode, "301") == 0){
             strncpy(nextUrl, location, strlen(location) + 1);
-         } else if(strcmp(statusCode, "302") == 0){
+         }else if(strcmp(statusCode, "302") == 0){
             strncat(nextUrl, hostname, strlen(hostname) + 1);
             strncat(nextUrl, location, strlen(location) + 1);
          }
@@ -257,6 +256,7 @@ read_again:
          strncpy(nextUrl, webUrl, strlen(webUrl) + 1);
       }
    }
+
    /* ---------------------------------------------------------- *
     * Free the structures we don't need anymore                  *
     * -----------------------------------------------------------*/
@@ -265,6 +265,10 @@ ssl_fail_error_handle:
    close(server);
    X509_free(cert);
    SSL_CTX_free(ctx);
+
+   /* ----------------------------------------------------------------------------- *
+    * Return the result and see whether moves to the location response given or not *
+    * ----------------------------------------------------------------------------- */
    if(!findNext){
       return result;
    }else{
@@ -283,20 +287,21 @@ char* parsingHerf(char * web, char *outputDir){
    if(!printBuf){
       return NULL;
    }
-   char *ahref = "<a href=\"\0";
+
+   char *ahrefStart = "<a href=\"\0";
    char *ahrefEnd = "\"";
    char *ahrefStr;
-   while((ahrefStr = strstr(web, ahref))){
+   while((ahrefStr = strstr(web, ahrefStart))){
       int length = strlen(web) - (int)(ahrefStr-web);
-      strncpy(web, ahrefStr + strlen(ahref), length - strlen(ahref));
-      web[length-strlen(ahref)] = '\0';
+      strncpy(web, ahrefStr + strlen(ahrefStart), length - strlen(ahrefStart));
+      web[length-strlen(ahrefStart)] = '\0';
 
       char *ahrefStrEnd = strstr(web, ahrefEnd);
       if(!ahrefStrEnd){
          continue;
       }
       length = (int)(ahrefStrEnd - web);
-      char *aHrefStr = (char *)malloc(MAX_CONVERT_URL_SIZE * sizeof(char));
+      char aHrefStr[MAX_CONVERT_URL_SIZE];
       strncpy(aHrefStr, web, length);
       aHrefStr[length] = '\0';
 
@@ -331,26 +336,34 @@ prev_justify:
             concat_direction = -200;
             break;
          default:
-            if(strlen(aHrefStr) >= 8){//complete and concat == 0 means don't need to search
-               complete = !strncmp(aHrefStr, "https://", 8);
+            if(strlen(aHrefStr) >= 8){
+               if(strncmp(aHrefStr, HTTP_HEADER_STR, strlen(HTTP_HEADER_STR)) == 0){
+                  continue;
+               }
+               complete = !strncmp(aHrefStr, HTTPS_HEADER_STR, strlen(HTTPS_HEADER_STR));
             }
-            if(!complete){
-               complete = 1;
-               concat_direction = 2;
+            if(!complete){//need forward search for 1 layer
+               concat_direction = -1;
             }
             break;
       }
-
+      char tmpStrSearch[MAX_CONVERT_URL_SIZE] = "\0";
       if(!complete){
          if(concat_direction == 0){
-            //printf("many %s\n", aHrefStr);
             continue;
-         }else{
-            //searching prev layer
-            printf("not searching prev layer yet");
+         }else{//searching prev layer
+            strncpy(tmpStrSearch, cur_url, strlen(cur_url) + 1);
+            for(int i = concat_direction; i < 0; i++){
+               char *pos = strrchr(tmpStrSearch, '/');
+               if(!pos){//this is error url so skip it
+                  continue;
+               }
+               *pos = '\0';
+            }
+            sprintf(tmpStrSearch, "%s/%s\0", tmpStrSearch, aHrefStr);
+            strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch) + 1);
          }
-      }else{
-         char tmpStrSearch[MAX_CONVERT_URL_SIZE];
+      }else{//don't need to search forwardly
          switch(concat_direction){//case 0 has already processed completetly
             case 1:
                strncpy(tmpStrSearch, cur_url, strlen(cur_url) + 1);
@@ -363,21 +376,44 @@ prev_justify:
                strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch) + 1);
                break;
             case -200:
-               strncpy(tmpStrSearch, "https://\0", 9);
+               strncpy(tmpStrSearch, HTTPS_HEADER_STR, 9);
                strncat(tmpStrSearch, hostname, strlen(hostname) + 1);
                strncat(tmpStrSearch, aHrefStr, strlen(aHrefStr) + 1);
                strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch) + 1);
                break;
          }
       }
+      /* ---------------------------------------------------------------------------------------------- *
+       * determine the last part is needed or not, ex:last part of url[https://aa.com/asd/#a] means: #a *
+       * and the last part that begins with # or mailto or tel will be ignored.like[https://aa.com/asd/]*
+       * ---------------------------------------------------------------------------------------------- */
+      memset(tmpStrSearch, '\0', MAX_CONVERT_URL_SIZE);
+      strncpy(tmpStrSearch, aHrefStr, strlen(aHrefStr) + 1);
+      if(tmpStrSearch[strlen(tmpStrSearch) - 1] == '/'){
+         tmpStrSearch[strlen(tmpStrSearch) - 1] == '\0';
+      }
+      char *lastPos = strrchr(tmpStrSearch, '/');//continue above example, lastPos = /#a,so what we want is (lastPos + 1)
+      if(lastPos){
+         if(*(lastPos+1) == '#'){
+            *(lastPos+1) = '\0';
+         }else if(strncmp((lastPos+1), "mailto:", 7) == 0){
+            *(lastPos+1) = '\0';
+         }else if(strncmp((lastPos+1), "tel:", 4) == 0){
+            *(lastPos+1) = '\0';
+         }
+      }
+      strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch)+1);
+
+      /* ---------------------------------------------------------------------------------------------- *
+       * normalized and check is it the same hostname, if not then skip the following step.             *
+       * Next,insert to the diskhash, if it already exist skip this url.                                *
+       * ---------------------------------------------------------------------------------------------- */
+
+      //URL normalized
       char tmpStr[7 + MAX_CONVERT_URL_SIZE];
       char webUrl[MAX_CONVERT_URL_SIZE];
       webUrlProcessed(aHrefStr, webUrl);
-      //write to the hash file
-      int ret;
-      if((ret = insertHash(webUrl)) != 0){
-         continue;
-      }
+
       /* TO COMPARE IS IT THE SAME HOST */
       char tmphost[MAX_URL_SIZE];
       get_host(webUrl, tmphost, MAX_URL_SIZE);
@@ -385,9 +421,14 @@ prev_justify:
          continue;
       }
 
+      //write to the hash file
+      int ret;
+      if((ret = insertHash(webUrl)) != 0){
+         continue;
+      }
+
       sprintf(tmpStr, "%04x\t%s\t\0", strlen(webUrl), webUrl);
       strncat(printBuf, tmpStr, strlen(tmpStr));
-      free(aHrefStr);
    }
    return printBuf;
 
@@ -405,6 +446,7 @@ int create_socket(char url_str[], _Bool parent) {
    int  port;
    struct hostent *host;
    struct sockaddr_in dest_addr;
+
    if(parent){
       memset(hostname, '\0', MAX_URL_SIZE);
       //tmphost
@@ -416,7 +458,6 @@ int create_socket(char url_str[], _Bool parent) {
       }else{
          return SOCKET_FAIL;
       }
-      //printf("%s %s\n", url_str, tmpHost);
       /* ---------------------------------------------------------- *
        * Remove the final / from url_str, if there is one           *
        * ---------------------------------------------------------- */

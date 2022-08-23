@@ -40,6 +40,9 @@
 
 #define STATUS_CODE_LEN 3
 
+#define HTTPS_HEADER_STR "https://"
+#define HTTP_HEADER_STR "http://"
+
 #include "urlProcessed.h"
 #include "defineUrlFileLen.h"
 #include "simpleDiskHash.h"

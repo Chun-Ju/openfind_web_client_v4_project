@@ -147,12 +147,12 @@ int main(int argc, char *argv[]){
    insertHash(webUrl);
 
    char *result;
-   for(int i = 0; i < RECONNECT_LIMIT; i++){
+   for(int i = 0; i < RETRY_LIMIT; i++){
       result = requestWeb(webUrl, outputDir, 1);
       if(result){
          break;
       }
-      if(i == RECONNECT_LIMIT - 1){
+      if(i == RETRY_LIMIT - 1){
          return ERR_SOCKET;
       }
    }

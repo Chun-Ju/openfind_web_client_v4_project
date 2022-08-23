@@ -153,11 +153,11 @@ read_again:
       int err = SSL_get_error(ssl, bytes);
       if(bytes < 0){
          if(err == SSL_ERROR_WANT_READ){
-            if(retry++ < RECONNECT_LIMIT){
+            if(retry++ < RETRY_LIMIT){
                goto read_again;
             }else{
 #ifdef _TEST_
-               printf("retry read:%d times so give up.\n", RECONNECT_LIMIT);
+               printf("retry read:%d times so give up.\n", RETRY_LIMIT);
 #endif
                break;
             }

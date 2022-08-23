@@ -27,6 +27,6 @@
 /* -------------------- *
  * reconnect time limit *
  * -------------------- */
-#define RECONNECT_LIMIT 3
+#define RETRY_LIMIT 3
 
 #endif

@@ -207,10 +207,10 @@ read_again:
       if(body[strlen(body)-4] == '\r'){
          body[strlen(body)-4] = '\0';
       }
-      //weburl file
+      //convert url to file name by combine hash value and order in hashfile, ex:this url's hash = 3, and is the first url in 3.txt, its filename will become 00300000001
       char pathName[PATH_MAX + TABLE_SIZE + NUM_LEN];
       ret = searchHash(def_url, 1);
-      if(ret <= 0){//0 means search before so can skip it
+      if(ret <= 0){//0 means has searched before so can skip it
          printf("have some error:%s\n", def_url);
          goto ssl_fail_error_handle;
       }
@@ -236,13 +236,13 @@ read_again:
    }else{//according status code go to corresponding address
       //catch the location
       char location[MAX_URL_SIZE];
-      char *location_p = strstr(printBuf, "Location: ");
-      if(location_p){
-         char * location_end = strstr(location_p, "\r\n");
+      char *strAfterLocation = strstr(printBuf, "Location: ");
+      if(strAfterLocation){
+         char * location_end = strstr(strAfterLocation, "\r\n");
          if(location_end){
             findNext = 1;
-            int countTmp = location_end - location_p - 10;
-            strncpy(location, location_p + 10, countTmp + 1);
+            int countTmp = location_end - strAfterLocation - 10;
+            strncpy(location, strAfterLocation + 10, countTmp + 1);
             location[countTmp] = '\0';
          }
          if(strcmp(statusCode, "301") == 0){

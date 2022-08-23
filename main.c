@@ -15,7 +15,6 @@ int forkProcess(int time){
    }else{ //all need to see once
       for(int i = 0; i < urlPerProcess; i++){ //read the whole page of web and download it
          char *tmpUrlStr = urlBuf + ((processCount - time) * urlPerProcess + i) * MAX_CONVERT_URL_SIZE;
-
          if(strcmp(tmpUrlStr, "") == 0){
             break;
          }
@@ -46,6 +45,7 @@ int forkProcess(int time){
          fcntl(fd, F_SETLK, &lock);
 
          close(fd);
+         free(result);
 
       }
       exit(SUCCESS);

@@ -337,10 +337,10 @@ prev_justify:
             break;
          default:
             if(strlen(aHrefStr) >= 8){
-               if(strncmp(aHrefStr, HTTP_HEADER_STR, strlen(HTTP_HEADER_STR)) == 0){
+               if(strncmp(aHrefStr, HTTP_PROTOCOL_STR, strlen(HTTP_PROTOCOL_STR)) == 0){
                   continue;
                }
-               complete = !strncmp(aHrefStr, HTTPS_HEADER_STR, strlen(HTTPS_HEADER_STR));
+               complete = !strncmp(aHrefStr, HTTPS_PROTOCOL_STR, strlen(HTTPS_PROTOCOL_STR));
             }
             if(!complete){//need forward search for 1 layer
                concat_direction = -1;
@@ -376,7 +376,7 @@ prev_justify:
                strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch) + 1);
                break;
             case -200:
-               strncpy(tmpStrSearch, HTTPS_HEADER_STR, 9);
+               strncpy(tmpStrSearch, HTTPS_PROTOCOL_STR, 9);
                strncat(tmpStrSearch, hostname, strlen(hostname) + 1);
                strncat(tmpStrSearch, aHrefStr, strlen(aHrefStr) + 1);
                strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch) + 1);

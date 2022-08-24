@@ -121,13 +121,18 @@ int main(int argc, char *argv[]){
       }
       strncpy(outputDir, OUTPUT_DIR, strlen(OUTPUT_DIR) + 1);
    }else{
-      outputDir = (char *)malloc((strlen(argv[2]) + 1) * sizeof(char));
+      outputDir = (char *)malloc((strlen(argv[2]) + 2) * sizeof(char));//1 for \0 and other 1 for / if didn't end with /
       if(!outputDir){
          return ERR_MALLOC;
       }
       strncpy(outputDir, argv[2], strlen(argv[2]));
+      if(outputDir[strlen(argv[2])-1] != '/'){
+         outputDir[strlen(argv[2])] = '/';
+         outputDir[strlen(argv[2])+1] = '\0';
+      }else{
+         outputDir[strlen(argv[2])] = '\0';
+      }
    }
-   outputDir[strlen(outputDir)] = '\0';
 
    int ret;
    if((ret = createDir(outputDir)) != SUCCESS){
@@ -218,3 +223,5 @@ int main(int argc, char *argv[]){
    free(outputDir);
    return SUCCESS;
 }
+
+

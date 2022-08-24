@@ -1,11 +1,20 @@
 #ifndef _MAIN_H_
 #define _MAIN_H_
 
-#include <stdlib.h>
+#ifndef _SYS_WAIT_H_
+#define _SYS_WAIT_H_
 #include <sys/wait.h>
+#endif
+
+#ifndef _SYS_STAT_H_
+#define _SYS_STAT_H_
 #include <sys/stat.h>
-#include <errno.h>
-#include <dirent.h>
+#endif
+
+#ifndef _STDLIB_H_
+#define _STDLIB_H_
+#include <stdlib.h>
+#endif
 
 #ifndef _STDIO_H_
 #define _STDIO_H_
@@ -32,5 +41,6 @@
 #include "urlProcessed.h"
 #include "simpleDiskHash.h"
 #include "socket.h"
+#include "directoryOperation.h"
 
 #endif

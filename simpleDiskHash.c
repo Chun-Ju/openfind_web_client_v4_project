@@ -138,8 +138,8 @@ int insertHash(char *key){
       return searchResult;
    }
 
-   //when no found, write into file in format: %8x\t%4x\t%s\t
-   char tmpStr[MAX_CONVERT_URL_SIZE + 16];
+   //when no found, write into file in format: %4x\t%s\t
+   char tmpStr[MAX_CONVERT_URL_SIZE + FORMAT_PRE_INFO_LEN + 2];//1 for \t after %s, and 1 for \0
    char tmpStrFormat[FORMAT_STR_LEN + 1];//1 for \0
    sprintf(tmpStrFormat, "%%0%dx\t%%s\t\0", MAX_CONVERT_URL_SIZE_LEN);
    sprintf(tmpStr, tmpStrFormat, strlen(key), key);

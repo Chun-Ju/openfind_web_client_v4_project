@@ -9,8 +9,8 @@ int get_host(char *, char *, int);
 char *parsingHerf(char *, char *, _Bool);
 _Bool equalDomain(char *, char *);
 
-char hostname[MAX_URL_SIZE] = "\0";
-char curhostname[MAX_URL_SIZE] = "\0";
+char hostname[MAX_URL_SIZE];
+char curhostname[MAX_URL_SIZE];
 char cur_url[MAX_CONVERT_URL_SIZE];
 
 char *requestWeb(char *def_url, char *outputDir, _Bool parent) {

@@ -8,7 +8,7 @@ prev_justify:
    switch(aHrefStr[which++]){
       case '#':
          concat_direction = 0;
-         break;
+      break;
       case '.':
          if(which < strlen(aHrefStr)){
             switch(aHrefStr[which++]){
@@ -17,20 +17,20 @@ prev_justify:
                      complete = 1;
                      concat_direction = 1;
                   }
-                  break;
+               break;
                case '.': //while previous justify
                   if(which < strlen(aHrefStr) && aHrefStr[which++] == '/'){
                      concat_direction -= 1;
                      goto prev_justify;
                   }
-                  break;
+               break;
             }
          }
-         break;
+      break;
       case '/': //after host name
          complete = 1;
          concat_direction = -200;
-         break;
+      break;
       default:
          if(strlen(aHrefStr) >= strlen(HTTP_PROTOCOL_STR)){
             complete = !strncmp(aHrefStr, HTTP_PROTOCOL_STR, strlen(HTTP_PROTOCOL_STR));
@@ -41,9 +41,9 @@ prev_justify:
          if(!complete){//need forward search for 1 layer
             concat_direction = -1;
          }
-         break;
+      break;
    }
-   char tmpStrSearch[MAX_CONVERT_URL_SIZE] = "\0";
+   char tmpStrSearch[MAX_CONVERT_URL_SIZE];
    if(!complete){
       if(concat_direction == 0){
          return SKIP;

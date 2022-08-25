@@ -93,8 +93,13 @@ void urlDeleteRedundantInf(char *aHrefStr){
       tmpStrSearch[strlen(tmpStrSearch) - 1] == '\0';
    }
    char *lastPos = strrchr(tmpStrSearch, '/');//continue above example, lastPos = /#a,so what we want is (lastPos + 1)
-   if((lastPos) && (*(lastPos+1) == '#') || (strncmp((lastPos+1), "mailto:", 7) == 0) || (strncmp((lastPos+1), "tel:", 4) == 0) || (strncmp((lastPos+1), "javascript:", 11) == 0)){//if #.. mailto: tel: then skip last part
+   if(lastPos && (lastPos+1) &&(*(lastPos+1) == '#') || (strncmp((lastPos+1), "mailto:", 7) == 0) || (strncmp((lastPos+1), "tel:", 4) == 0) || (strncmp((lastPos+1), "javascript:", 11) == 0)){//if #.. mailto: tel: then skip last part
       *(lastPos+1) = '\0';
+   }else if(lastPos && (lastPos + 1)){
+      char *ignoredStr = strchr(lastPos + 1, '#');
+      if(ignoredStr){
+         *(ignoredStr) = '\0';
+      }
    }
    strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch)+1);
 }

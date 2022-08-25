@@ -23,6 +23,7 @@
 #define HASH_PATH_LEN 9
 //the number of url limit is 0xffffffff(8 digits)
 #define NUM_LEN 8
+#define FILE_EXTENSION_TXT ".txt"
 
 /* -------------------- *
  * reconnect time limit *

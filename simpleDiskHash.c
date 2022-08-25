@@ -33,8 +33,8 @@ int searchHash(char *key, int externalCaller){//caller 0:insertHash 1:other prog
    int result = 0;
    _Bool first = 0;
    unsigned index = hash_func(key);
-   char pathName[HASH_PATH_LEN + TABLE_SIZE_MAX_LEN + 5];//5 is for (.txt\0)
-   sprintf(pathName, "%s%d.txt\0", HASH_PATH, index);
+   char pathName[HASH_PATH_LEN + TABLE_SIZE_MAX_LEN + strlen(FILE_EXTENSION_TXT) + 1];//1 for \0
+   sprintf(pathName, "%s%d%s\0", HASH_PATH, index, FILE_EXTENSION_TXT);
    fd = open(pathName, O_RDWR|O_CREAT|O_EXCL|O_APPEND, 0644);
    if(fd == -1){
       if(errno == EEXIST){

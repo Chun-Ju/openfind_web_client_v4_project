@@ -1,6 +1,6 @@
-#include "urlProcessed.h"
+#include "urlNormalized.h"
 
-void webUrlProcessed(char *href, char *webUrl) {
+void webUrlNormalized(char *href, char *webUrl) {
 
    webUrl[0] = '\0';
    int last = 0;

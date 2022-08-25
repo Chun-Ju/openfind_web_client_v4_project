@@ -1,5 +1,5 @@
-#ifndef _URLPROCESSED_H_
-#define _URLPROCESSED_H_
+#ifndef _URLNORMALIZED_H_
+#define _URLNORMALIZED_H_
 
 #include <ctype.h>
 
@@ -18,6 +18,6 @@
 
 #include "defineUrlFileLen.h"
 
-void webUrlProcessed(char *href, char *webUrl);
+void webUrlNormalized(char *href, char *webUrl);
 
 #endif

@@ -273,7 +273,7 @@ read_again:
 
    if(findNext){
       char webUrl[MAX_CONVERT_URL_SIZE];
-      webUrlProcessed(nextUrl, webUrl);
+      webUrlNormalized(nextUrl, webUrl);
 
       char pathName[PATH_MAX + NUM_LEN];
       ret = insertHash(webUrl);
@@ -434,7 +434,7 @@ prev_justify:
       //URL normalized
       char tmpStr[7 + MAX_CONVERT_URL_SIZE];
       char webUrl[MAX_CONVERT_URL_SIZE];
-      webUrlProcessed(aHrefStr, webUrl);
+      webUrlNormalized(aHrefStr, webUrl);
 
       /* TO COMPARE IS IT THE SAME HOST */
       char tmphost[MAX_URL_SIZE];

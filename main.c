@@ -136,7 +136,7 @@ int main(int argc, char *argv[]){
       return ERR_ARGS;
    }
    char webUrl[MAX_CONVERT_URL_SIZE];
-   webUrlProcessed(argv[1], webUrl);
+   webUrlNormalized(argv[1], webUrl);
    insertHash(webUrl);
 
    char *result;

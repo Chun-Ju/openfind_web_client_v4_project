@@ -40,9 +40,6 @@
 
 #define STATUS_CODE_LEN 3
 
-#define HTTPS_PROTOCOL_STR "https://\0"
-#define HTTP_PROTOCOL_STR "http://\0"
-
 #include "urlNormalized.h"
 #include "defineUrlFileLen.h"
 #include "simpleDiskHash.h"

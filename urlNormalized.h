@@ -17,7 +17,10 @@
 #define URL_SAVED_CHARSET "-_.~!*'();:@&=+$,/?%%#[]"
 
 #include "defineUrlFileLen.h"
+#include "errDefine.h"
 
+_Bool href2url(char *aHrefStr, char hostname[MAX_URL_SIZE], char cur_url[MAX_CONVERT_URL_SIZE],_Bool protocolTypeHttps);
+void urlDeleteRedundantInf(char *aHrefStr);
 void webUrlNormalized(char *href, char *webUrl);
 
 #endif

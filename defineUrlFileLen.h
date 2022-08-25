@@ -30,4 +30,12 @@
  * -------------------- */
 #define RETRY_LIMIT 3
 
+
+/* -------------------- *
+ * protocol type string *
+ * -------------------- */
+#define HTTPS_PROTOCOL_STR "https://\0"
+#define HTTP_PROTOCOL_STR "http://\0"
+
+
 #endif

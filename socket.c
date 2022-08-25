@@ -47,9 +47,9 @@ char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
          return result;
       }
    }
-   /* ---------------------------------------------------------- *
-    * Add to solve the sub directory of the website. by Felicia  *
-    * ---------------------------------------------------------- */
+   /* ----------------------------------------------- *
+    * Add to solve the sub directory of the website.  *
+    * ----------------------------------------------- */
    char *subDirPtr = strstr(def_url, host) + strlen(host);
    char subDir[MAX_URL_SIZE];
    strncpy(subDir, subDirPtr, strlen(subDirPtr));
@@ -107,9 +107,9 @@ char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
       certname = X509_get_subject_name(cert);
    }
 
-   /* ----------------------------------- *
-    * send the request message by Felicia *
-    * ----------------------------------- */
+   /* ------------------------ *
+    * send the request message *
+    * ------------------------ */
    char str[MAX_URL_SIZE + 0x30];
    sprintf(str, "GET %s HTTP/1.1\r\nHost: %s\r\nConnection: Close\r\n\r\n\0" , subDir, hostname);
    int bytes_w;
@@ -144,9 +144,9 @@ send_again:
          }
       }
    }
-   /* ---------------------------------------------------------- *
-    * recv the message or the webpage structure by Felicia       *
-    * -----------------------------------------------------------*/
+   /* ------------------------------------------ *
+    * recv the message or the webpage structure  *
+    * ------------------------------------------ */
    char printBuf[MAX_WEB_SIZE];
    memset(printBuf, '\0', MAX_WEB_SIZE);
    char buf[MAX_PER_SIZE];
@@ -188,9 +188,9 @@ read_again:
          }
       }
    }
-   /* --------------------------------------------------------  *
-    * parsing the web struct and analyze the message by Felicia *
-    * --------------------------------------------------------- */
+   /* ---------------------------------------------  *
+    * parsing the web struct and analyze the message *
+    * ---------------------------------------------- */
    char statusCode[STATUS_CODE_LEN+1];//HTTP/1.1 STATUS_CODE ...
    strncpy(statusCode, printBuf + 9, STATUS_CODE_LEN);
    statusCode[STATUS_CODE_LEN] = '\0';
@@ -334,103 +334,13 @@ char* parsingHerf(char * web, char *outputDir, _Bool protocolTypeHttps){
       strncpy(aHrefStr, web, length);
       aHrefStr[length] = '\0';
 
-      _Bool complete = 0;//complete:0 need to search for prev layer or can ignore, complete:1 means don't need search for prev layer
-      int concat_direction = 0;//neg:prev, 0:means the same ignore, pos:concat after current url
-      int which = 0;
-prev_justify:
-      switch(aHrefStr[which++]){
-         case '#':
-            concat_direction = 0;
-            break;
-         case '.':
-            if(which < strlen(aHrefStr)){
-               switch(aHrefStr[which++]){
-                  case '/': //after current
-                     if(which == 1){
-                        complete = 1;
-                        concat_direction = 1;
-                     }
-                     break;
-                  case '.': //while previous justify
-                     if(which < strlen(aHrefStr) && aHrefStr[which++] == '/'){
-                        concat_direction -= 1;
-                        goto prev_justify;
-                     }
-                     break;
-               }
-            }
-            break;
-         case '/': //after host name
-            complete = 1;
-            concat_direction = -200;
-            break;
-         default:
-            if(strlen(aHrefStr) >= strlen(HTTP_PROTOCOL_STR)){
-               complete = !strncmp(aHrefStr, HTTP_PROTOCOL_STR, strlen(HTTP_PROTOCOL_STR));
-               if(!complete){
-                  complete = !strncmp(aHrefStr, HTTPS_PROTOCOL_STR, strlen(HTTPS_PROTOCOL_STR));
-               }
-            }
-            if(!complete){//need forward search for 1 layer
-               concat_direction = -1;
-            }
-            break;
+      if(href2url(aHrefStr, hostname, cur_url, protocolTypeHttps)){
+         continue;
       }
-      char tmpStrSearch[MAX_CONVERT_URL_SIZE] = "\0";
-      if(!complete){
-         if(concat_direction == 0){
-            continue;
-         }else{//searching prev layer
-            strncpy(tmpStrSearch, cur_url, strlen(cur_url) + 1);
-            for(int i = concat_direction; i < 0; i++){
-               char *pos = strrchr(tmpStrSearch, '/');
-               if(!pos){//this is error url so skip it
-                  continue;
-               }
-               *pos = '\0';
-            }
-            sprintf(tmpStrSearch, "%s/%s\0", tmpStrSearch, aHrefStr);
-            strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch) + 1);
-         }
-      }else{//don't need to search forwardly
-         switch(concat_direction){//case 0 has already processed completetly
-            case 1:
-               strncpy(tmpStrSearch, cur_url, strlen(cur_url) + 1);
-               strncat(tmpStrSearch, aHrefStr + 2, strlen(aHrefStr) - 1);
-               strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch) + 1);
-               break;
-            case -200:
-               if(protocolTypeHttps){
-                  strncpy(tmpStrSearch, HTTPS_PROTOCOL_STR, strlen(HTTPS_PROTOCOL_STR)+ 1);
-               }else{
-                  strncpy(tmpStrSearch, HTTP_PROTOCOL_STR, strlen(HTTP_PROTOCOL_STR)+ 1);
-               }
-               strncat(tmpStrSearch, hostname, strlen(hostname) + 1);
-               strncat(tmpStrSearch, aHrefStr, strlen(aHrefStr) + 1);
-               strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch) + 1);
-               break;
-         }
-      }
-      /* ---------------------------------------------------------------------------------------------- *
-       * determine the last part is needed or not, ex:last part of url[https://aa.com/asd/#a] means: #a *
-       * and the last part that begins with # or mailto or tel will be ignored.like[https://aa.com/asd/]*
-       * ---------------------------------------------------------------------------------------------- */
-      memset(tmpStrSearch, '\0', MAX_CONVERT_URL_SIZE);
-      strncpy(tmpStrSearch, aHrefStr, strlen(aHrefStr) + 1);
-      if(tmpStrSearch[strlen(tmpStrSearch) - 1] == '/'){
-         tmpStrSearch[strlen(tmpStrSearch) - 1] == '\0';
-      }
-      char *lastPos = strrchr(tmpStrSearch, '/');//continue above example, lastPos = /#a,so what we want is (lastPos + 1)
-      if((lastPos) && (*(lastPos+1) == '#') || (strncmp((lastPos+1), "mailto:", 7) == 0) || (strncmp((lastPos+1), "tel:", 4) == 0) || (strncmp((lastPos+1), "javascript:", 11) == 0)){//if #.. mailto: tel: then skip last part
-         *(lastPos+1) = '\0';
-      }
-      strncpy(aHrefStr, tmpStrSearch, strlen(tmpStrSearch)+1);
 
-      /* ---------------------------------------------------------------------------------------------- *
-       * normalized and check is it the same hostname, if not then skip the following step.             *
-       * Next,insert to the diskhash, if it already exist skip this url.                                *
-       * ---------------------------------------------------------------------------------------------- */
+      urlDeleteRedundantInf(aHrefStr);
 
+      /* normalized and check is it the same hostname, if not then skip the following step. */
       //URL normalized
       char tmpStr[7 + MAX_CONVERT_URL_SIZE];
       char webUrl[MAX_CONVERT_URL_SIZE];
@@ -443,6 +353,7 @@ prev_justify:
          continue;
       }
 
+      /* Next,insert to the diskhash, if it already exist skip this url. */
       //write to the hash file
       int ret;
       if((ret = insertHash(webUrl)) != 0){
@@ -483,31 +394,20 @@ int create_socket(char url_str[], _Bool parent, _Bool protocolTypeHttps) {
       }else{
          return SOCKET_FAIL;
       }
-      /* ---------------------------------------------------------- *
-       * Remove the final / from url_str, if there is one           *
-       * ---------------------------------------------------------- */
-      if (url_str[strlen(url_str)] == '/')
+
+      if (url_str[strlen(url_str)] == '/'){//Remove the final / from url_str, if there is one
          url_str[strlen(url_str)] = '\0';
-
-      /* ---------------------------------------------------------- *
-       * the first : ends the protocol string, i.e. http            *
-       * ---------------------------------------------------------- */
-      if(strchr(url_str, ':')){
+      }
+      if(strchr(url_str, ':')){//the first : ends the protocol string, i.e. http
          strncpy(proto, url_str, (strchr(url_str, ':')-url_str));
-
-         /* ---------------------------------------------------------- *
-          * the hostname starts after the "://" part                   *
-          * ---------------------------------------------------------- */
+         //the hostname starts after the "://" part
          strncpy(hostname, strstr(url_str, "://")+3, sizeof(hostname));
       }else{
          strncpy(hostname, url_str, strlen(url_str));
       }
-      /* ---------------------------------------------------------- *
-       * if the hostname contains a colon :, we got a port number   *
-       * ---------------------------------------------------------- */
-      if (strchr(hostname, ':')) {
+      if (strchr(hostname, ':')){//if the hostname contains a colon :, we got a port number
          tmp_ptr = strchr(hostname, ':');
-         /* the last : starts the port number, if avail, i.e. 8443 */
+         //the last : starts the port number, if avail, i.e. 8443
          strncpy(portnum, tmp_ptr+1,  sizeof(portnum));
          *tmp_ptr = '\0';
       }
@@ -528,17 +428,13 @@ int create_socket(char url_str[], _Bool parent, _Bool protocolTypeHttps) {
    dest_addr.sin_port=htons(port);
    dest_addr.sin_addr.s_addr = *(long*)(host->h_addr);
 
-   /* about timeout by Felicia */
+   //about timeout
    struct timeval tv;
    tv.tv_sec  = 10;
    tv.tv_usec = 0;
    setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (char*)&tv, sizeof(struct timeval));
    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval));
-   /* end of timeout */
 
-   /* ---------------------------------------------------------- *
-    * Zeroing the rest of the struct                             *
-    * ---------------------------------------------------------- */
    memset(&(dest_addr.sin_zero), '\0', 8);
 
    tmp_ptr = inet_ntoa(dest_addr.sin_addr);

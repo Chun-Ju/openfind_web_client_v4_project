@@ -2,6 +2,7 @@
 #define _ERRDEFINE_H_
 
 #define SUCCESS 0
+#define SKIP 1
 
 #define ERR_BASE 0
 #define ERR_ARGS (ERR_BASE-1)

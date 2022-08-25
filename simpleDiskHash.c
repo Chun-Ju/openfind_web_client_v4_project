@@ -76,7 +76,8 @@ int searchHash(char *key, int externalCaller){//caller 0:insertHash 1:other prog
       }
       curStart = nextStart;//starting index of this time read in file
       nextStart += n;//next start index;
-      for(int bufIndex = 0; bufIndex < n;){
+      int bufIndex = 0;
+      while(bufIndex < n){
          /* ------------------------------------------------------------------------------ *
           * capture the pre information[%8x\t%4x\t]%s\t about its number and strlen of url *
           * ------------------------------------------------------------------------------ */

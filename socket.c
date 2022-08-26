@@ -169,18 +169,21 @@ write_again:
          retry = 0;
 read_again:
          bytes = SSL_read(ssl, buf, sizeof(buf));
-         int err = SSL_get_error(ssl, bytes);
          if(bytes > 0){
             buf[bytes] = '\0';
             strncat(printBuf, buf, bytes+1);
          }else if(bytes < 0){
+            int err = SSL_get_error(ssl, bytes);
             if((err != SSL_ERROR_WANT_READ) && (retry++ < RETRY_LIMIT)){
                sleep(1);
                goto read_again;
             }
             goto ssl_fail_error_handle;
-         }else if(err != SSL_ERROR_ZERO_RETURN){//bytes == 0, and SSL_ERROR_ZERO_RETURN means close normally, others mean error
-            goto ssl_fail_error_handle;
+         }else{
+            int err = SSL_get_error(ssl, bytes);
+            if(err != SSL_ERROR_ZERO_RETURN){//bytes == 0, and SSL_ERROR_ZERO_RETURN means close normally, others mean error
+               goto ssl_fail_error_handle;
+            }
          }
       }
    }

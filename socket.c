@@ -315,7 +315,8 @@ char* parsingHerf(char * web, char *outputDir, _Bool protocolTypeHttps){
       return NULL;
    }
 
-   char *tagStart = "<a href=\"\0";
+   char *tagStart = "<a";
+   char *hrefStart = "href";
    char *tagEnd = "\"";
    char *strAfterTag;
    char *strAfterComment;
@@ -328,10 +329,13 @@ find_again:
       strAfterComment = strstr(web, HTML_COMMENT_START_STR);
       if(strAfterComment){
          if(strAfterTag > strAfterComment){
-            web = strstr(web, HTML_COMMENT_END_STR)+ strlen(HTML_COMMENT_END_STR);
+            sprintf(web, "%s\0", strstr(web, HTML_COMMENT_END_STR) + strlen(HTML_COMMENT_END_STR));
             goto find_again;
          }
       }
+
+      strAfterTag = strstr(strAfterTag, hrefStart);
+      strAfterTag = strchr(strAfterTag, '=');
 
       int length = strlen(web) - (int)(strAfterTag - web);
       strncpy(web, strAfterTag + strlen(tagStart), length - strlen(tagStart));

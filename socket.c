@@ -158,12 +158,11 @@ write_again:
          if((err == SSL_ERROR_WANT_WRITE) && (retry++ < RETRY_LIMIT)){
             sleep(1);
             goto write_again;
-         }else{
-#ifdef _TEST_
-            printf("retry write:%d times so give up.\n", RETRY_LIMIT);
-#endif
-            goto ssl_fail_error_handle;
          }
+#ifdef _TEST_
+         printf("retry write:%d times so give up.\n", RETRY_LIMIT);
+#endif
+         goto ssl_fail_error_handle;
       }
       //recv the message or the webpage structure
       while(bytes > 0){
@@ -178,9 +177,8 @@ read_again:
             if((err != SSL_ERROR_WANT_READ) && (retry++ < RETRY_LIMIT)){
                sleep(1);
                goto read_again;
-            }else{
-               goto ssl_fail_error_handle;
             }
+            goto ssl_fail_error_handle;
          }else if(err != SSL_ERROR_ZERO_RETURN){//bytes == 0, and SSL_ERROR_ZERO_RETURN means close normally, others mean error
             goto ssl_fail_error_handle;
          }
@@ -383,6 +381,7 @@ int create_socket(char url_str[], _Bool parent, _Bool protocolTypeHttps) {
    struct hostent *host;
    struct sockaddr_in dest_addr;
 
+   //record the hostname and domain, user want to search for
    if(parent){
       memset(hostname, '\0', MAX_URL_SIZE);
       //tmphost
@@ -412,6 +411,7 @@ int create_socket(char url_str[], _Bool parent, _Bool protocolTypeHttps) {
          *tmp_ptr = '\0';
       }
    }
+
    port = atoi(portnum);
    if(strcmp(curhostname, hostname) != 0){
       strncpy(hostname, curhostname, strlen(curhostname) + 1);

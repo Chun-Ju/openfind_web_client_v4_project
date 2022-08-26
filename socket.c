@@ -58,15 +58,60 @@ char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
       subDir[0] = '/';
       subDir[1] = '\0';
    }
+
    /* ------------------------------------------------------------------- *
     * Connecting with ssl or just make the underlying TCP socket connect  *
+    * and send GET request then recv the response message                 *
     * ------------------------------------------------------------------- */
+   //initialize
+   char str[MAX_URL_SIZE + 0x30];
+   sprintf(str, "GET %s HTTP/1.1\r\nHost: %s\r\nConnection: Close\r\n\r\n\0" , subDir, hostname);
+   int bytes_w;
+   int retry = 0;
+
+   char printBuf[MAX_WEB_SIZE];
+   memset(printBuf, '\0', MAX_WEB_SIZE);
+   char buf[MAX_PER_SIZE];
+   int bytes = 1;
+
    if(!protocolTypeHttps){//http->TCP socket
+      //connect
       server = create_socket(dest_url, parent, protocolTypeHttps);
       if(server == 0){
          goto ssl_fail_error_handle;
       }
+      //send the request message
+send_again:
+      bytes_w = send(server, str, strlen(str), 0);
+      if(bytes_w < 0){
+         int errnoTmp = errno;
+         if(errnoTmp == EAGAIN){
+            sleep(1);
+            goto send_again;
+         }else if(errnoTmp == EINTR){
+            goto send_again;
+         }else{
+            goto ssl_fail_error_handle;
+         }
+      }
+      //recv the message or the webpage structure
+      while(bytes != 0){//bytes == 0 means closing normally.
+         bytes = recv(server, buf, sizeof(buf), 0);
+         if (bytes > 0){
+            buf[bytes] = '\0';
+            strncat(printBuf, buf, bytes + 1);
+         }else if(bytes < 0){
+            int errnoTmp = errno;
+            if(errnoTmp == EAGAIN){
+               sleep(1);
+            }else if(errnoTmp != EINTR){
+               goto ssl_fail_error_handle;
+            }
+            continue;
+         }
+      }
    }else{//https->ssl and TCP socket
+      //connect
       OpenSSL_add_all_algorithms();
       ERR_load_crypto_strings();
       SSL_load_error_strings();
@@ -105,16 +150,7 @@ char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
       }
       certname = X509_NAME_new();
       certname = X509_get_subject_name(cert);
-   }
-
-   /* ------------------------ *
-    * send the request message *
-    * ------------------------ */
-   char str[MAX_URL_SIZE + 0x30];
-   sprintf(str, "GET %s HTTP/1.1\r\nHost: %s\r\nConnection: Close\r\n\r\n\0" , subDir, hostname);
-   int bytes_w;
-   int retry = 0;
-   if(protocolTypeHttps){
+      //send the request message
 write_again:
       bytes_w = SSL_write(ssl, str, strlen(str));
       if(bytes_w < 0){
@@ -129,29 +165,7 @@ write_again:
             goto ssl_fail_error_handle;
          }
       }
-   }else{
-send_again:
-      bytes_w = send(server, str, strlen(str), 0);
-      if(bytes_w < 0){
-         int errnoTmp = errno;
-         if(errnoTmp == EAGAIN){
-            sleep(1);
-            goto send_again;
-         }else if(errnoTmp == EINTR){
-            goto send_again;
-         }else{
-            goto ssl_fail_error_handle;
-         }
-      }
-   }
-   /* ------------------------------------------ *
-    * recv the message or the webpage structure  *
-    * ------------------------------------------ */
-   char printBuf[MAX_WEB_SIZE];
-   memset(printBuf, '\0', MAX_WEB_SIZE);
-   char buf[MAX_PER_SIZE];
-   int bytes = 1;
-   if(protocolTypeHttps){
+      //recv the message or the webpage structure
       while(bytes > 0){
          retry = 0;
 read_again:
@@ -171,23 +185,8 @@ read_again:
             goto ssl_fail_error_handle;
          }
       }
-   }else{
-      while(bytes != 0){//bytes == 0 means closing normally.
-         bytes = recv(server, buf, sizeof(buf), 0);
-         if (bytes > 0){
-            buf[bytes] = '\0';
-            strncat(printBuf, buf, bytes + 1);
-         }else if(bytes < 0){
-            int errnoTmp = errno;
-            if(errnoTmp == EAGAIN){
-               sleep(1);
-            }else if(errnoTmp != EINTR){
-               goto ssl_fail_error_handle;
-            }
-            continue;
-         }
-      }
    }
+
    /* ---------------------------------------------  *
     * parsing the web struct and analyze the message *
     * ---------------------------------------------- */
@@ -271,6 +270,7 @@ read_again:
       }
    }
 
+   //response might give the Location info which is the accurate address
    if(findNext){
       char webUrl[MAX_CONVERT_URL_SIZE];
       webUrlNormalized(nextUrl, webUrl);

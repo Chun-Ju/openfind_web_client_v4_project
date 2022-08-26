@@ -37,5 +37,10 @@
 #define HTTPS_PROTOCOL_STR "https://\0"
 #define HTTP_PROTOCOL_STR "http://\0"
 
+/* ------------------- */
+/* comment in html str */
+/* ------------------- */
+#define HTML_COMMENT_START_STR "<!--"
+#define HTML_COMMENT_END_STR "-->"
 
 #endif

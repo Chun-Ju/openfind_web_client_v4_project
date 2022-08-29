@@ -4,10 +4,10 @@
  * First we need to make a standard TCP socket connection.    *
  * create_socket() creates a socket & TCP-connects to server. *
  * ---------------------------------------------------------- */
-_Bool write2File(char *, char *, char *, int);
+_Bool write2File(char *, char *, char *, int, char *);
 int create_socket(char[], _Bool, _Bool);
 int get_host(char *, char *, int);
-char *parsingHerf(char *, char *, _Bool);
+char *parsingHerf(char *, long, char *, _Bool);
 _Bool equalDomain(char *, char *);
 
 char hostname[MAX_URL_SIZE];
@@ -86,6 +86,7 @@ char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
    char statusCode[STATUS_CODE_LEN+1];
    char *chunkedStr;
    long long contentLength;
+   _Bool HTML = FALSE;
    //https->ssl and TCP socket
    //connect
    OpenSSL_add_all_algorithms();
@@ -166,21 +167,46 @@ char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
                   goto ssl_fail_error_handle;
                }
                strncpy(statusCode, statusCodePtr, STATUS_CODE_LEN);
-
                chunkedStr = strstr(headerContent, CHUNKED);//null : not chunk, other : chunked
                char *strAfterContentLengthStr = strstr(headerContent, CONTENT_LENGTH_STR);
                if(strAfterContentLengthStr){
                   char *contentLengthEndPtr = strstr(strAfterContentLengthStr, "\r\n");
                   if(contentLengthEndPtr){
-                     char contentLengthStr[MAX_URL_SIZE];
-                     strncpy(contentLengthStr, strAfterContentLengthStr + strlen(CONTENT_LENGTH_STR), contentLengthEndPtr - strAfterContentLengthStr + strlen(CONTENT_LENGTH_STR));
+                     char contentLengthStr[MAX_WEB_SIZE];
+                     int length = contentLengthEndPtr - strAfterContentLengthStr - strlen(CONTENT_LENGTH_STR);
+                     strncpy(contentLengthStr, strAfterContentLengthStr + strlen(CONTENT_LENGTH_STR), length);
+                     contentLengthStr[strlen(contentLengthStr)] = '\0';
                      contentLength = strtol(contentLengthStr,NULL, 10);
-                     printf("Content-length: %lld\n", contentLength);
                   }else{
                      contentLength = -1;//means no supply
                   }
                }else{
                   contentLength = -1;//means no supply
+               }
+
+               char *contentTypeStart = strstr(headerContent, CONTENT_TYPE_STR);
+               char textType[MAX_WEB_SIZE];
+               if(contentTypeStart){
+                  char *contentTypeEnd = strstr(contentTypeStart, "\r\n");
+                  if(contentTypeEnd){
+                     char contentType[MAX_WEB_SIZE];
+                     int length = contentTypeEnd - (contentTypeStart + strlen(CONTENT_TYPE_STR));
+                     strncpy(contentType, contentTypeStart + strlen(CONTENT_TYPE_STR), length);
+                     contentType[length] = '\0';
+                     char *textTypePrefix = strstr(contentType, "text/");
+                     if(textTypePrefix){
+                        char *textTypePostfix = strchr(textTypePrefix, ';');
+                        if(textTypePostfix){
+                           strncpy(textType, textTypePrefix, textTypePostfix - textTypePrefix);
+                           textType[textTypePrefix - textTypePostfix] = '\0';
+                        }else{
+                           strncpy(textType ,textTypePrefix, strlen(textTypePrefix));
+                        }
+                     }
+                     if(strcmp(textType, "text/html") == 0 || strcmp(textType, "text/plain") == 0 || strcmp(textType, "text/xml") == 0){
+                        HTML = TRUE;
+                     }
+                  }
                }
                totalBytes -= (headerEnd + strlen(CRLF));
                memmove(printBuf, headerEndPtr + strlen(CRLF), totalBytes);
@@ -211,6 +237,16 @@ char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
       strncpy(nextUrl, HTTP_PROTOCOL_STR, strlen(HTTP_PROTOCOL_STR) + 1);
    }
    _Bool findNext = 0;
+
+   //convert url to file name by combine hash value and order in hashfile,
+   //ex:this url's hash = 3, and is the first url in 3.txt, its filename will become 00300000001
+   char pathName[PATH_MAX + TABLE_SIZE + NUM_LEN + 1];//1 for \0
+   ret = searchHash(def_url, 1);
+   if(ret <= 0){//0 means has searched before so can skip it
+      printf("have some error:%s\n", def_url);
+      return FALSE;
+   }
+   sprintf(pathName, "%s%03d%08x\0", outputDir, hash_func(def_url), ret);
    if(strcmp(statusCode, "200")!= 0){//according status code go to corresponding address
       //catch the location
       char location[MAX_URL_SIZE];
@@ -235,11 +271,10 @@ char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
             }
          }
       }
-   }
-   else{
+   }else{
       //continue receive message
       if(printBuf){
-         if(!write2File(outputDir, def_url, printBuf, totalBytes)){
+         if(!write2File(outputDir, def_url, printBuf, totalBytes, pathName)){
             goto ssl_fail_error_handle;
          }
       }
@@ -251,7 +286,7 @@ char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
             bytes = SSL_read(ssl, buf, sizeof(buf));
             if(bytes > 0){
                totalBytes += bytes;
-               write2File(outputDir, def_url, buf, bytes);
+               write2File(outputDir, def_url, buf, bytes, pathName);
                break;
             }else if(bytes < 0){
                int err = SSL_get_error(ssl, bytes);
@@ -271,11 +306,53 @@ char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
          }
       }
       result = SSL_SUCCESS;
-      printf("recv %lld\n", totalBytes);
-      /*
       //parsing temperorally removed id one page pdf version
-      result = parsingHerf(body, outputDir, protocolTypeHttps);
-      */
+      //read file and parsing
+      if(HTML){
+         //char *readBuffer = (char *)malloc(totalBytes * sizeof(char));
+         char readBuffer[MAX_WEB_SIZE];
+         if(!readBuffer){
+            goto ssl_fail_error_handle;
+         }
+
+         FILE *fptr = fopen(pathName, "r");
+         if(!fptr){
+            //free(readBuffer);
+            goto ssl_fail_error_handle;
+         }
+         fread(readBuffer, totalBytes, 1, fptr);
+         fclose(fptr);
+         result = parsingHerf(readBuffer, MAX_WEB_SIZE, outputDir, protocolTypeHttps);
+         //TODO > MAX_WEB_SIZE  still need process
+         if(totalBytes > MAX_WEB_SIZE){
+            //special processing
+         }
+         int fd = open(URL_FILE, O_WRONLY|O_APPEND);
+         if(fd == -1){
+#ifdef _TEST_
+            printf("\nreason: err_open\n\n");
+#endif
+             goto ssl_fail_error_handle;
+          }
+
+         struct flock lock;
+         char buffer[1024];
+         lock.l_len = 0;
+         lock.l_pid = getpid();
+         lock.l_start = 0;
+         lock.l_type = F_WRLCK;
+         lock.l_whence = SEEK_SET;
+         //NEED TO BLOCKING UNTIL CAN WRITE
+         fcntl(fd, F_SETLKW, &lock);
+         write(fd, result, strlen(result));
+
+         lock.l_type = F_UNLCK;
+         fcntl(fd, F_SETLK, &lock);
+
+         close(fd);
+         free(result);
+         //free(readBuffer);
+      }
    }
 
    //response might give the Location info which is the accurate address
@@ -313,19 +390,9 @@ ssl_fail_error_handle:
 
 }
 
-_Bool write2File(char *outputDir, char *def_url, char *printBuf, int totalBytes){
-   //convert url to file name by combine hash value and order in hashfile,
-   //ex:this url's hash = 3, and is the first url in 3.txt, its filename will become 00300000001
-   char pathName[PATH_MAX + TABLE_SIZE + NUM_LEN + 1];//1 for \0
-   int ret = searchHash(def_url, 1);
-   if(ret <= 0){//0 means has searched before so can skip it
-      printf("have some error:%s\n", def_url);
-      return FALSE;
-   }
-   sprintf(pathName, "%s%03d%08x\0", outputDir, hash_func(def_url), ret);
-
+_Bool write2File(char *outputDir, char *def_url, char *printBuf, int totalBytes, char *pathName){
    struct flock lock;
-   char buffer[1024];
+   char buffer[MAX_WEB_SIZE];
    int fd = open(pathName, O_RDWR|O_CREAT|O_EXCL|O_APPEND, 0644);
    if(fd == -1){
       int err = errno;
@@ -346,8 +413,7 @@ _Bool write2File(char *outputDir, char *def_url, char *printBuf, int totalBytes)
 /* ---------------------------------------------------------- *
  *           parsing all the href include in webpage          *
  * ---------------------------------------------------------- */
-char* parsingHerf(char * web, char *outputDir, _Bool protocolTypeHttps){
-
+char* parsingHerf(char * web, long totalBytes, char *outputDir, _Bool protocolTypeHttps){
    char *printBuf = (char *)calloc(MAX_WEB_SIZE, sizeof(char));
    if(!printBuf){
       return NULL;
@@ -359,33 +425,41 @@ char* parsingHerf(char * web, char *outputDir, _Bool protocolTypeHttps){
    char *strAfterTag;
    char *strAfterComment;
    while(1){
+      //printf("%s\n", web);
 find_again:
-      strAfterTag = strstr(web, tagStart);
+      /*strAfterTag = strstr(web, tagStart);
+      printf("%p\n", strAfterTag);*/
+      strAfterTag = memmem(web, totalBytes, tagStart, strlen(tagStart));
       if(!strAfterTag){
          break;
       }
-      strAfterComment = strstr(web, HTML_COMMENT_START_STR);
+      strAfterComment = memmem(web, totalBytes, HTML_COMMENT_START_STR, strlen(HTML_COMMENT_END_STR));
       if(strAfterComment){
          if(strAfterTag > strAfterComment){
-            sprintf(web, "%s\0", strstr(web, HTML_COMMENT_END_STR) + strlen(HTML_COMMENT_END_STR));
+            //sprintf(web, "%s\0", memmem(web, totalBytes, HTML_COMMENT_END_STR, strlen(HTML_COMMENT_END_STR)) + strlen(HTML_COMMENT_END_STR));
+            memmove(web, strAfterComment + strlen(HTML_COMMENT_END_STR), totalBytes - (strAfterComment - web));
             goto find_again;
          }
       }
+      
+      strAfterTag = memmem(strAfterTag, totalBytes - (strAfterTag - web), hrefStart, strlen(hrefStart));
+      //strAfterTag = strstr(strAfterTag, hrefStart);
+      //strAfterTag = strchr(strAfterTag, '=');
+      strAfterTag = memmem(strAfterTag, totalBytes - (strAfterTag - web), "=", 1);
 
-      strAfterTag = strstr(strAfterTag, hrefStart);
-      strAfterTag = strchr(strAfterTag, '=');
-
-      int length = strlen(web) - (int)(strAfterTag - web);
-      strncpy(web, strAfterTag + strlen(tagStart), length - strlen(tagStart));
-      web[length-strlen(tagStart)] = '\0';
-      char *ahrefStrEnd = strstr(web, tagEnd);
+      int length = totalBytes - (int)(strAfterTag - web);
+      //strncpy(web, strAfterTag + strlen(tagStart), length - strlen(tagStart));
+      memmove(web, strAfterTag + strlen(tagStart), length - strlen(tagStart));
+      //web[length-strlen(tagStart)] = '\0';
+      char *ahrefStrEnd = memmem(web, totalBytes, tagEnd, strlen(tagEnd));
       if(!ahrefStrEnd){
          continue;
       }
       length = (int)(ahrefStrEnd - web);
 
       char aHrefStr[MAX_CONVERT_URL_SIZE];
-      strncpy(aHrefStr, web, length);
+      //strncpy(aHrefStr, web, length);
+      memmove(aHrefStr, web, length);
       aHrefStr[length] = '\0';
 
       if(href2url(aHrefStr, hostname, cur_url, protocolTypeHttps)){
@@ -415,7 +489,6 @@ find_again:
       }
       sprintf(tmpStr, "%04x\t%s\t\0", strlen(webUrl), webUrl);
       strncat(printBuf, tmpStr, strlen(tmpStr) + 1);
-
    }
    return printBuf;
 

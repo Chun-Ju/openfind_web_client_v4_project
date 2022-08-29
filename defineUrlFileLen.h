@@ -1,6 +1,9 @@
 #ifndef _DEFINEURLFILELEN_H_
 #define _DEFINEURLFILELEN_H_
 
+//URL FILE
+#define URL_FILE "url.txt\0"//for saving the file of url's order to dispatch
+
 /* ------------------------------------------------------------ *
  * fprintf format "%0[NUM_LEN]x%0[MAX_CONVERT_URL_SIZE_LEN]x%s" *
  * ------------------------------------------------------------ */
@@ -49,5 +52,6 @@
 #define CHUNKED "Transfer-Encoding: chunked"
 #define CRLF "\r\n\r\n"
 #define CONTENT_LENGTH_STR "Content-Length: "
+#define CONTENT_TYPE_STR "Content-Type: "
 
 #endif

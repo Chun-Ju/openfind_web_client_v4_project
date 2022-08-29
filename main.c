@@ -22,31 +22,6 @@ int forkProcess(int time){
          if(!result){
             continue;
          }
-
-         int fd = open(URL_FILE, O_WRONLY|O_APPEND);
-         if(fd == -1){
-#ifdef _TEST_
-            printf("\nreason: err_open\n\n");
-#endif
-            exit(ERR_FOPEN);
-         }
-         struct flock lock;
-         char buffer[1024];
-         lock.l_len = 0;
-         lock.l_pid = getpid();
-         lock.l_start = 0;
-         lock.l_type = F_WRLCK;
-         lock.l_whence = SEEK_SET;
-         //NEED TO BLOCKING UNTIL CAN WRITE
-         fcntl(fd, F_SETLKW, &lock);
-         write(fd, result, strlen(result));
-
-         lock.l_type = F_UNLCK;
-         fcntl(fd, F_SETLK, &lock);
-
-         close(fd);
-         free(result);
-
       }
       exit(SUCCESS);
    }
@@ -156,6 +131,7 @@ int main(int argc, char *argv[]){
    }
    fprintf(fd, "%s", result);
    fclose(fd);
+   free(result);
    //read and dispatch
    urlBuf = (char *)malloc(processCount * urlPerProcess * MAX_CONVERT_URL_SIZE * sizeof(char));
    if(!urlBuf){

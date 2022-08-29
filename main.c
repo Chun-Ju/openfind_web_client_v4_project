@@ -114,6 +114,11 @@ int main(int argc, char *argv[]){
    webUrlNormalized(argv[1], webUrl);
    insertHash(webUrl);
 
+   FILE *fd = fopen(URL_FILE, "a+");
+   if(!fd){
+      return ERR_FOPEN;
+   }
+   fclose(fd);
    char *result;
    for(int i = 0; i < RETRY_LIMIT; i++){
       result = requestWeb(webUrl, outputDir, 1);
@@ -124,14 +129,7 @@ int main(int argc, char *argv[]){
    if(!result){
       return ERR_SOCKET;
    }
-   FILE *fd = fopen(URL_FILE, "w+");
-   if(!fd){
-      free(outputDir);
-      return ERR_FOPEN;
-   }
-   fprintf(fd, "%s", result);
-   fclose(fd);
-   free(result);
+
    //read and dispatch
    urlBuf = (char *)malloc(processCount * urlPerProcess * MAX_CONVERT_URL_SIZE * sizeof(char));
    if(!urlBuf){

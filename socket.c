@@ -128,7 +128,8 @@ char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
    certname = X509_get_subject_name(cert);
 
    //send the request message
-   for(int i = 0; i < RETRY_LIMIT; i++){
+   retry = 0;
+   while(retry < RETRY_LIMIT){
       bytes_w = SSL_write(ssl, str, strlen(str));
       if(bytes_w < 0){
          int err = SSL_get_error(ssl, bytes_w);
@@ -146,7 +147,7 @@ char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
    //only do string processing with header msg.
    while(bytes > 0 && !header){
       retry = 0;
-      for(int i = 0; i < RETRY_LIMIT && !header; i++){
+      while(retry < RETRY_LIMIT && !header){
          bytes = SSL_read(ssl, buf, sizeof(buf));
          if(bytes > 0){
             memmove(printBuf + totalBytes, buf, bytes);

@@ -17,4 +17,10 @@
 #define ERR_MKDIR_EEXIST (ERR_MKDIR-2)
 #define ERR_MKDIR_ENAMETOOLONG (ERR_MKDIR-3)
 
+#define TRUE 1
+#define FALSE 0
+
+//for pdf verison (that don't need parsing only)
+#define SSL_SUCCESS "ssl_Success"
+
 #endif

@@ -4,6 +4,7 @@
  * First we need to make a standard TCP socket connection.    *
  * create_socket() creates a socket & TCP-connects to server. *
  * ---------------------------------------------------------- */
+_Bool write2File(char *, char *, char *, int);
 int create_socket(char[], _Bool, _Bool);
 int get_host(char *, char *, int);
 char *parsingHerf(char *, char *, _Bool);
@@ -32,6 +33,8 @@ char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
    _Bool protocolTypeHttps;//0:others(http) 1:https
    if(strncmp(def_url, HTTP_PROTOCOL_STR, strlen(HTTP_PROTOCOL_STR)) == 0){
       protocolTypeHttps = 0;
+      printf("still not serve about http server in branch pdf version\n");
+      return result;
    }else if(strncmp(def_url, HTTPS_PROTOCOL_STR, strlen(HTTPS_PROTOCOL_STR)) == 0){
       protocolTypeHttps = 1;
    }else{
@@ -39,7 +42,7 @@ char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
    }
 
    strncpy(dest_url, def_url, strlen(def_url) + 1);
-   get_host(dest_url, host, MAX_URL_SIZE);
+   get_host(dest_url, hostname, MAX_URL_SIZE);
    get_host(dest_url, curhostname, MAX_URL_SIZE);
 
    if(strcmp(hostname, "") != 0){
@@ -70,189 +73,154 @@ char *requestWeb(char *def_url, char *outputDir, _Bool parent) {
    int retry = 0;
 
    char printBuf[MAX_WEB_SIZE];
+   //char *printBuf = (char *)calloc(MAX_WEB_SIZE, sizeof(char));
    memset(printBuf, '\0', MAX_WEB_SIZE);
-   char buf[MAX_PER_SIZE];
+   char *contentStart;
+
+   char buf[MAX_WEB_SIZE];
    int bytes = 1;
 
-   if(!protocolTypeHttps){//http->TCP socket
-      //connect
-      server = create_socket(dest_url, parent, protocolTypeHttps);
-      if(server == 0){
-         goto ssl_fail_error_handle;
-      }
-      //send the request message
-send_again:
-      bytes_w = send(server, str, strlen(str), 0);
-      if(bytes_w < 0){
-         int errnoTmp = errno;
-         if(errnoTmp == EAGAIN){
-            sleep(1);
-            goto send_again;
-         }else if(errnoTmp == EINTR){
-            goto send_again;
-         }else{
-            goto ssl_fail_error_handle;
-         }
-      }
-      //recv the message or the webpage structure
-      while(bytes != 0){//bytes == 0 means closing normally.
-         bytes = recv(server, buf, sizeof(buf), 0);
-         if (bytes > 0){
-            buf[bytes] = '\0';
-            strncat(printBuf, buf, bytes + 1);
-         }else if(bytes < 0){
-            int errnoTmp = errno;
-            if(errnoTmp == EAGAIN){
-               sleep(1);
-            }else if(errnoTmp != EINTR){
-               goto ssl_fail_error_handle;
-            }
-            continue;
-         }
-      }
-   }else{//https->ssl and TCP socket
-      //connect
-      OpenSSL_add_all_algorithms();
-      ERR_load_crypto_strings();
-      SSL_load_error_strings();
-      if(SSL_library_init() < 0){
-         goto ssl_fail_error_handle;
-      }
-      method = TLS_client_method();
-      if ( (ctx = SSL_CTX_new(method)) == NULL){
-         goto ssl_fail_error_handle;
-      }
-      SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2);
-      ssl = SSL_new(ctx);
+   int totalBytes = 0;
+   _Bool header = FALSE;
+   char headerContent[MAX_WEB_SIZE];
+   char statusCode[STATUS_CODE_LEN+1];
+   char *chunkedStr;
+   long long contentLength;
+   //https->ssl and TCP socket
+   //connect
+   OpenSSL_add_all_algorithms();
+   ERR_load_crypto_strings();
+   SSL_load_error_strings();
+   if(SSL_library_init() < 0){
+      goto ssl_fail_error_handle;
+   }
+   method = TLS_client_method();
+   if ( (ctx = SSL_CTX_new(method)) == NULL){
+      goto ssl_fail_error_handle;
+   }
+   SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2);
+   ssl = SSL_new(ctx);
 
-      server = create_socket(dest_url, parent, protocolTypeHttps);
-      if(server == 0){
-         goto ssl_fail_error_handle;
-      }
+   server = create_socket(dest_url, parent, protocolTypeHttps);
+   if(server == 0){
+      goto ssl_fail_error_handle;
+   }
 
-      SSL_set_fd(ssl, server);
-      SSL_ctrl(ssl, SSL_CTRL_SET_TLSEXT_HOSTNAME, TLSEXT_NAMETYPE_host_name, (void*)host);
-      if ((ret = SSL_connect(ssl)) != 1 ) {
-         int err;
-         err = SSL_get_error(ssl, ret);
-         if(err == SSL_ERROR_SSL){
-            ERR_load_crypto_strings();
-            SSL_load_error_strings(); // just once
-            char msg[1024];
-            ERR_error_string_n(ERR_get_error(), msg, sizeof(msg));
-            printf("%s %s %s %s\n", msg, ERR_lib_error_string(0), ERR_func_error_string(0), ERR_reason_error_string(0));
-         }
-         goto ssl_fail_error_handle;
+   SSL_set_fd(ssl, server);
+   SSL_ctrl(ssl, SSL_CTRL_SET_TLSEXT_HOSTNAME, TLSEXT_NAMETYPE_host_name, (void*)host);
+   if ((ret = SSL_connect(ssl)) != 1 ) {
+      int err;
+      err = SSL_get_error(ssl, ret);
+      if(err == SSL_ERROR_SSL){
+         ERR_load_crypto_strings();
+         SSL_load_error_strings(); // just once
+         char msg[1024];
+         ERR_error_string_n(ERR_get_error(), msg, sizeof(msg));
+         printf("%s %s %s %s\n", msg, ERR_lib_error_string(0), ERR_func_error_string(0), ERR_reason_error_string(0));
       }
-      cert = SSL_get_peer_certificate(ssl);
-      if (cert == NULL){
-         goto ssl_fail_error_handle;
-      }
-      certname = X509_NAME_new();
-      certname = X509_get_subject_name(cert);
-      //send the request message
-write_again:
+      goto ssl_fail_error_handle;
+   }
+   cert = SSL_get_peer_certificate(ssl);
+   if (cert == NULL){
+      goto ssl_fail_error_handle;
+   }
+   certname = X509_NAME_new();
+   certname = X509_get_subject_name(cert);
+
+   //send the request message
+   for(int i = 0; i < RETRY_LIMIT; i++){
       bytes_w = SSL_write(ssl, str, strlen(str));
       if(bytes_w < 0){
          int err = SSL_get_error(ssl, bytes_w);
          if((err == SSL_ERROR_WANT_WRITE) && (retry++ < RETRY_LIMIT)){
             sleep(1);
-            goto write_again;
-         }
-#ifdef _TEST_
-         printf("retry write:%d times so give up.\n", RETRY_LIMIT);
-#endif
-         goto ssl_fail_error_handle;
-      }
-      //recv the message or the webpage structure
-      while(bytes > 0){
-         retry = 0;
-read_again:
-         bytes = SSL_read(ssl, buf, sizeof(buf));
-         int err = SSL_get_error(ssl, bytes);
-         if(bytes > 0){
-            buf[bytes] = '\0';
-            strncat(printBuf, buf, bytes+1);
-         }else if(bytes < 0){
-            if((err != SSL_ERROR_WANT_READ) && (retry++ < RETRY_LIMIT)){
-               sleep(1);
-               goto read_again;
-            }
-            goto ssl_fail_error_handle;
-         }else if(err != SSL_ERROR_ZERO_RETURN){//bytes == 0, and SSL_ERROR_ZERO_RETURN means close normally, others mean error
+         }else{
             goto ssl_fail_error_handle;
          }
+      }else{
+         break;
       }
    }
 
-   /* ---------------------------------------------  *
-    * parsing the web struct and analyze the message *
-    * ---------------------------------------------- */
-   char statusCode[STATUS_CODE_LEN+1];//HTTP/1.1 STATUS_CODE ...
-   strncpy(statusCode, printBuf + 9, STATUS_CODE_LEN);
-   statusCode[STATUS_CODE_LEN] = '\0';
+   //recv the message or the webpage structure until header finish
+   //only do string processing with header msg.
+   while(bytes > 0 && !header){
+      retry = 0;
+      for(int i = 0; i < RETRY_LIMIT && !header; i++){
+         bytes = SSL_read(ssl, buf, sizeof(buf));
+         if(bytes > 0){
+            memmove(printBuf + totalBytes, buf, bytes);
+            totalBytes += bytes;
+            char *headerEndPtr = strstr(printBuf, CRLF);
+            if(!header && headerEndPtr){//find the whole header msg
+               int headerEnd = headerEndPtr - printBuf;
+               strncpy(headerContent, printBuf, headerEnd);
+               headerContent[headerEnd] = '\0';
+               header = TRUE;
+               //do header parsing:
+               char *statusCodePtr = strchr(headerContent, ' ');
+               if(statusCodePtr){
+                  statusCodePtr += 1;
+               }else{
+                  goto ssl_fail_error_handle;
+               }
+               strncpy(statusCode, statusCodePtr, STATUS_CODE_LEN);
+
+               chunkedStr = strstr(headerContent, CHUNKED);//null : not chunk, other : chunked
+               char *strAfterContentLengthStr = strstr(headerContent, CONTENT_LENGTH_STR);
+               if(strAfterContentLengthStr){
+                  char *contentLengthEndPtr = strstr(strAfterContentLengthStr, "\r\n");
+                  if(contentLengthEndPtr){
+                     char contentLengthStr[MAX_URL_SIZE];
+                     strncpy(contentLengthStr, strAfterContentLengthStr + strlen(CONTENT_LENGTH_STR), contentLengthEndPtr - strAfterContentLengthStr + strlen(CONTENT_LENGTH_STR));
+                     contentLength = strtol(contentLengthStr,NULL, 10);
+                     printf("Content-length: %lld\n", contentLength);
+                  }else{
+                     contentLength = -1;//means no supply
+                  }
+               }else{
+                  contentLength = -1;//means no supply
+               }
+               totalBytes -= (headerEnd + strlen(CRLF));
+               memmove(printBuf, headerEndPtr + strlen(CRLF), totalBytes);
+            }
+            break;
+         }else if(bytes < 0){
+            int err = SSL_get_error(ssl, bytes);
+            if((err != SSL_ERROR_WANT_READ) && (retry++ < RETRY_LIMIT)){
+               sleep(1);
+            }else{
+               goto ssl_fail_error_handle;
+            }
+         }else{
+            int err = SSL_get_error(ssl, bytes);
+            if(err != SSL_ERROR_ZERO_RETURN){//bytes == 0, and SSL_ERROR_ZERO_RETURN means close normally, others mean error
+               goto ssl_fail_error_handle;
+            }else{
+               break;
+            }
+         }
+      }
+   }
+   /* ----------------------------------------------------  *
+    * wirte the web struct to file  and analyze the message *
+    * ----------------------------------------------------- */
    char nextUrl[MAX_URL_SIZE] = HTTPS_PROTOCOL_STR;
    if(!protocolTypeHttps){
       strncpy(nextUrl, HTTP_PROTOCOL_STR, strlen(HTTP_PROTOCOL_STR) + 1);
    }
    _Bool findNext = 0;
-   if(strcmp(statusCode, "200") == 0){
-      char *CRLF = "\r\n\r\n";
-      char *body = strstr(printBuf, CRLF);
-      if(!body){
-         printf("no web struct found\n");
-         goto ssl_fail_error_handle;
-      }
-      body += strlen(CRLF);
-
-      char *chunkedStr = strstr(printBuf, "Transfer-Encoding: chunked");
-      if(chunkedStr){
-         if(chunkedStr < body){
-            body = strchr(body, '\n');
-            body += 1;
-            body[strlen(body)-5] = '\0';
-         }
-      }
-      if(body[strlen(body)-4] == '\r'){
-         body[strlen(body)-4] = '\0';
-      }
-      //convert url to file name by combine hash value and order in hashfile,
-      //ex:this url's hash = 3, and is the first url in 3.txt, its filename will become 00300000001
-      char pathName[PATH_MAX + TABLE_SIZE + NUM_LEN + 1];//1 for \0
-      ret = searchHash(def_url, 1);
-      if(ret <= 0){//0 means has searched before so can skip it
-         printf("have some error:%s\n", def_url);
-         goto ssl_fail_error_handle;
-      }
-      sprintf(pathName, "%s%03d%08x\0", outputDir, hash_func(def_url), ret);
-
-      //write and wrlock
-      struct flock lock;
-      char buffer[1024];
-      int fd = open(pathName, O_RDWR|O_CREAT|O_EXCL, 0644);
-      if(fd == -1){
-         printf("fopen fail: %s %s\n", pathName, def_url);
-         goto ssl_fail_error_handle;
-      }
-      int res = fcntl(fd, F_SETLKW, &lock);
-      int n = read(fd, buffer, sizeof(buffer));
-      if(n != 0){
-         goto ssl_fail_error_handle;
-      }
-      write(fd, body, strlen(body) + 1);
-      close(fd);
-
-      result = parsingHerf(body, outputDir, protocolTypeHttps);
-   }else{//according status code go to corresponding address
+   if(strcmp(statusCode, "200")!= 0){//according status code go to corresponding address
       //catch the location
       char location[MAX_URL_SIZE];
-      char *strAfterLocation = strstr(printBuf, "Location: ");
+
+      char *strAfterLocation = strstr(headerContent, LOCATION);
       if(strAfterLocation){
          char * location_end = strstr(strAfterLocation, "\r\n");
          if(location_end){
             findNext = 1;
-            int countTmp = location_end - strAfterLocation - 10;
-            strncpy(location, strAfterLocation + 10, countTmp + 1);
+            int countTmp = location_end - strAfterLocation - strlen(LOCATION);
+            strncpy(location, strAfterLocation + strlen(LOCATION), countTmp + 1);
             location[countTmp] = '\0';
          }
          if(strcmp(statusCode, "301") == 0){
@@ -266,6 +234,47 @@ read_again:
             }
          }
       }
+   }
+   else{
+      //continue receive message
+      if(printBuf){
+         if(!write2File(outputDir, def_url, printBuf, totalBytes)){
+            goto ssl_fail_error_handle;
+         }
+      }
+      bytes = 1;
+      //recv the message or the webpage structure until nothing can read
+      while(bytes > 0){
+         retry = 0;
+         for(int i = 0; i < RETRY_LIMIT; i++){
+            bytes = SSL_read(ssl, buf, sizeof(buf));
+            if(bytes > 0){
+               totalBytes += bytes;
+               write2File(outputDir, def_url, buf, bytes);
+               break;
+            }else if(bytes < 0){
+               int err = SSL_get_error(ssl, bytes);
+               if((err != SSL_ERROR_WANT_READ) && (retry++ < RETRY_LIMIT)){
+                  sleep(1);
+               }else{
+                  goto ssl_fail_error_handle;
+               }
+            }else{
+               int err = SSL_get_error(ssl, bytes);
+               if(err != SSL_ERROR_ZERO_RETURN){//bytes == 0, and SSL_ERROR_ZERO_RETURN means close normally, others mean error
+                  goto ssl_fail_error_handle;
+               }else{
+                  break;
+               }
+            }
+         }
+      }
+      result = SSL_SUCCESS;
+      printf("recv %lld\n", totalBytes);
+      /*
+      //parsing temperorally removed id one page pdf version
+      result = parsingHerf(body, outputDir, protocolTypeHttps);
+      */
    }
 
    //response might give the Location info which is the accurate address
@@ -292,7 +301,6 @@ ssl_fail_error_handle:
       SSL_CTX_free(ctx);
    }
    close(server);
-
    /* ----------------------------------------------------------------------------- *
     * Return the result and see whether moves to the location response given or not *
     * ----------------------------------------------------------------------------- */
@@ -304,6 +312,35 @@ ssl_fail_error_handle:
 
 }
 
+_Bool write2File(char *outputDir, char *def_url, char *printBuf, int totalBytes){
+   //convert url to file name by combine hash value and order in hashfile,
+   //ex:this url's hash = 3, and is the first url in 3.txt, its filename will become 00300000001
+   char pathName[PATH_MAX + TABLE_SIZE + NUM_LEN + 1];//1 for \0
+   int ret = searchHash(def_url, 1);
+   if(ret <= 0){//0 means has searched before so can skip it
+      printf("have some error:%s\n", def_url);
+      return FALSE;
+   }
+   sprintf(pathName, "%s%03d%08x\0", outputDir, hash_func(def_url), ret);
+
+   struct flock lock;
+   char buffer[1024];
+   int fd = open(pathName, O_RDWR|O_CREAT|O_EXCL|O_APPEND, 0644);
+   if(fd == -1){
+      int err = errno;
+      if(errno == EEXIST){
+         fd = open(pathName, O_RDWR|O_APPEND);
+      }else{
+         printf("fopen fail: %s %s\n", pathName, def_url);
+         return FALSE;
+      }
+   }
+   int res = fcntl(fd, F_SETLKW, &lock);
+   write(fd, printBuf, totalBytes + 1);
+   lock.l_type = F_UNLCK;
+   close(fd);
+   return TRUE;
+}
 
 /* ---------------------------------------------------------- *
  *           parsing all the href include in webpage          *

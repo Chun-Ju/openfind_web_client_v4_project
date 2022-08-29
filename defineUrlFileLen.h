@@ -42,5 +42,12 @@
 /* ------------------- */
 #define HTML_COMMENT_START_STR "<!--"
 #define HTML_COMMENT_END_STR "-->"
+/* ----------------- */
+/* header info str */
+/* ----------------- */
+#define LOCATION "Location: "
+#define CHUNKED "Transfer-Encoding: chunked"
+#define CRLF "\r\n\r\n"
+#define CONTENT_LENGTH_STR "Content-Length: "
 
 #endif
